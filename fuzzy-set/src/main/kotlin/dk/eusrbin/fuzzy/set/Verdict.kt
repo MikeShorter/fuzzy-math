@@ -135,24 +135,46 @@ public sealed interface Verdict<X> {
     public companion object {
 
         /**
-         * [Proven] if [domain] is exhaustive, [NotRefuted] otherwise — the
-         * "no witness found" case, resolved against what the domain can promise.
+         * [Proven] if the ∀ was exhaustive, [NotRefuted] otherwise — the "no
+         * witness found" case, resolved against what the search can promise.
          *
-         * The one place the [Domain.isExhaustive] / [Verdict] correspondence is
-         * decided, so that no analysis operation has to get it right on its own.
+         * The one place the exhaustive / [Verdict] correspondence is decided, so
+         * that no analysis operation has to get it right on its own.
+         *
+         * The witness type `W` is **not** tied to any domain's element type
+         * (CLAUDE.md §19.1). Containment's witness is an `x`, but convexity's is
+         * a *triple* `(x₁, x₂, λ)` — and the domain that was searched is
+         * `Domain<Double>` either way. Since nothing here reads the domain except
+         * its `isExhaustive`, taking the boolean directly is both more honest and
+         * more general than taking a domain we would only ask one question of.
          */
         @JvmStatic
-        public fun <X> noWitness(domain: Domain<X>): Verdict<X> =
-            if (domain.isExhaustive) Proven() else NotRefuted()
+        public fun <W> noWitness(exhaustive: Boolean): Verdict<W> =
+            if (exhaustive) Proven() else NotRefuted()
 
         /**
-         * [Refuted] if [witness] is non-null, otherwise `noWitness(domain)`.
+         * [Refuted] if [witness] is non-null, otherwise `noWitness(exhaustive)`.
          *
          * The shape every ∀ operation in this module reduces to: search for a
          * counterexample, then let this decide what the absence of one means.
          */
         @JvmStatic
+        public fun <W> of(witness: W?, exhaustive: Boolean): Verdict<W> =
+            if (witness != null) Refuted(witness) else noWitness(exhaustive)
+
+        /**
+         * [noWitness] for the common case where the witness *is* a domain element
+         * — containment, equality, emptiness. Sugar over `noWitness(domain.isExhaustive)`.
+         */
+        @JvmStatic
+        public fun <X> noWitness(domain: Domain<X>): Verdict<X> = noWitness(domain.isExhaustive)
+
+        /**
+         * [of] for the common case where the witness *is* a domain element.
+         * Sugar over `of(witness, domain.isExhaustive)`.
+         */
+        @JvmStatic
         public fun <X> of(witness: X?, domain: Domain<X>): Verdict<X> =
-            if (witness != null) Refuted(witness) else noWitness(domain)
+            of(witness, domain.isExhaustive)
     }
 }

@@ -370,6 +370,75 @@ public object FuzzySets {
     @JvmStatic
     public fun <X> dilation(a: MembershipFn<X>): MembershipFn<X> = power(a, 0.5)
 
+    // ---- Zadeh §V: the part that needs no vector space ---------------------
+
+    /**
+     * `S_H(A)` — the **shadow** (projection) of `a` onto its second coordinate,
+     * taking the supremum over the first.
+     *
+     * **Source:** Zadeh 1965, §V p.350. **No equation number** — a prose
+     * definition, like the composition on p.346.
+     *
+     * ```
+     * f_{S_H(A)}(x₂, …, xₙ) = Sup_{x₁} f_A(x₁, …, xₙ)
+     * ```
+     *
+     * ## Why this is in 2a's tier and not 2b's
+     *
+     * CLAUDE.md §19.2, which corrects §15.5. §V is where the vector space lives,
+     * so a shadow *looks* vector-space-bound — but read what Zadeh actually
+     * defines:
+     *
+     * > *"For notational simplicity, the notion of the shadow (projection) of A
+     * > on a hyperplane H will be defined below **for the special case where H is
+     * > a coordinate hyperplane**, e.g. `H = {x | x₁ = 0}`."*
+     *
+     * The coordinate case is all he defines, and it is a **`Sup` over one
+     * coordinate**: no scalar multiplication, no addition on X, nothing §15.5's
+     * `VectorSpace` would supply. It needs a product domain and a fold, which are
+     * [Product] and [Domain.reduceDegrees].
+     *
+     * This is exactly the distinction §15.5 drew for the separation degree — *"the
+     * computation is domain-generic; only its meaning needs the vector space"* —
+     * and did not apply to the entry three lines above it.
+     *
+     * What *does* need Eⁿ is the shadow's **theorems**: *"if A is a convex fuzzy
+     * set, then its shadow on any hyperplane is also a convex fuzzy set"*, and
+     * `S_H(A) = S_H(B) for all H ⇒ A = B` — the latter ranging over *arbitrary*
+     * hyperplanes, not coordinate ones. Those are 2b's, and the second is out of
+     * scope entirely (§19.4).
+     *
+     * ## It is the extension principle
+     *
+     * Zadeh notes: *"this definition is consistent with (23)"* — eq. (23) being
+     * `f_B(y) = Max_{x ∈ T⁻¹(y)} f_A(x)`, the set induced by a mapping. A shadow
+     * **is** the extension principle along a projection, which is why `fuzzy-relation`
+     * (§10) will want this same machinery.
+     *
+     * ```kotlin
+     * // A fuzzy set on a 2-D grid, projected onto its second axis.
+     * val a: MembershipFn<Pair<Double, Double>> = MembershipFn { (x, y) -> … }
+     * val onY: MembershipFn<Double> = FuzzySets.shadow(a, Sampled.of(-3.0, 3.0))
+     * ```
+     *
+     * **Cost:** one fold over [over] *per evaluation* of the result — the shadow
+     * is lazy, like every combinator here, so nothing is computed until asked, and
+     * then a supremum is taken each time. §15.4's wall applies with force: a
+     * shadow over a 1024-point grid costs 1024 evaluations per point of the
+     * result. Cache it if you will ask twice.
+     *
+     * @param a a fuzzy set on the product `A × B`.
+     * @param over the domain of the coordinate being **projected out**.
+     */
+    @JvmStatic
+    public fun <A, B> shadow(a: MembershipFn<Pair<A, B>>, over: Domain<A>): MembershipFn<B> =
+        MembershipFn { b ->
+            over.reduceDegrees(
+                MembershipFn { first -> a.apply(first to b) },
+                0.0,
+            ) { accumulator, degree -> max(accumulator, degree) }
+        }
+
     // ---- Constructions ------------------------------------------------------
 
     /**

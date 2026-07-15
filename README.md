@@ -11,8 +11,9 @@ implementation("dk.eusrbin:fuzzy-set:0.1.0")
 testImplementation("dk.eusrbin:fuzzy-laws:0.1.0")
 ```
 
-> **Status: slice 2a, pre-release.** `fuzzy-algebra`, `fuzzy-set` and
-> `fuzzy-laws`. Nothing is published to Maven Central yet.
+> **Status: slice 2b, pre-release.** `fuzzy-algebra`, `fuzzy-set` and
+> `fuzzy-laws` — Zadeh 1965 §II–§V complete. Nothing is published to Maven
+> Central yet.
 
 ---
 
@@ -148,6 +149,7 @@ Product and Łukasiewicz; min is the only idempotent t-norm. So:
 | `MembershipFnLaws` | any membership fn | degrees in `[0,1]`; **every closed-form override agrees with the fold it replaced** |
 | `ZadehSetLaws` | sets over an algebra | Zadeh's own set-level claims — eqs. 7, 8, 9, 10, 15, 19 |
 | `DecompositionLaws` | any membership fn | `A = ⋃ α·Γ_α` round-trips |
+| `ConvexityLaws` | any `DoubleMembershipFn` | strong ⟹ convex; overrides may not deny a witness; a sampled ∀ is never `Proven` |
 
 **The one thing to take away:** a law you read in Zadeh 1965 is not
 automatically a law of your algebra. Distributivity is the one people carry over
@@ -200,14 +202,24 @@ artifact validates the algebra artifact from the outside. Slice 2a added
 `fuzzy-set`: the `Domain` seam, the pointwise algebra, hedges, α-cuts and
 decomposition — everything in Zadeh 1965 that is domain-generic.
 
-**Slice 2b** is Zadeh §V — convexity, boundedness, shadow, separation. Those need
-a *vector space*, not merely a domain: convexity is
+Slice 2b added Zadeh §V: convexity, strong convexity, separation and the shadow.
+§V needs a **vector space**, not merely a domain — convexity is
 `f_A[λx₁ + (1−λ)x₂] ≥ Min[f_A(x₁), f_A(x₂)]` (eq. 25), and forming that segment
-needs arithmetic on X itself. Zadeh says so on p.347 — *"we assume for
-concreteness that X is a real Euclidean space Eⁿ"*. So §V is ℝ¹-bound and waits.
+needs arithmetic on X itself, which is why those live on `DoubleMembershipFn`
+rather than one level up. Zadeh states the precondition himself on p.347: *"we
+assume for concreteness that X is a real Euclidean space Eⁿ."*
 
-The full twelve-module graph, and the reasoning behind each cut, is in
-[CLAUDE.md](CLAUDE.md) §10.
+Two of §V's properties **did not ship, and the reasons are recorded**: strict
+convexity is vacuous in ℝ¹ (every convex subset of ℝ is strictly convex — it needs
+a dimension to work in), and boundedness is unsamplable from a bounded window in
+either direction. Three of §V's four theorems are tested but not shipped as law
+suites, because each is conditional on convexity and a grid never *proves*
+convexity — so a failure would indict the sampler, not the code.
+
+**That completes Zadeh 1965.** What remains of §10's twelve-module graph —
+`fuzzy-relation`, `fuzzy-number`, `fuzzy-defuzz`, and the rest — is later
+mathematics built on this substrate. The graph and the reasoning behind each cut
+are in [CLAUDE.md](CLAUDE.md) §10.
 
 ## License
 

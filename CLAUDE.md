@@ -6,6 +6,266 @@ file is wrong and should be fixed deliberately, not silently.
 
 ---
 
+## Updated: 2026-07-15 — Slice 2b design
+
+### 19. Zadeh §V — **ALL RATIFIED 2026-07-15**
+
+§15.5 and §15.6 designed 2b before 2a existed. Read back against the built seam
+and against §18.1's verified §V index, three things need deciding. §15.5's
+*central* finding — that §V needs a vector space, not a domain — is verbatim
+correct (p.347: *"we assume for concreteness that X is a real Euclidean space
+Eⁿ"*) and is not in question.
+
+#### 19.1 §15.6's mechanism is superseded by §16.4
+
+§15.6 decided `findNonConvexity(over:): Counterexample?`, and its reasoning is
+right: convexity quantifies over uncountably many `x` **and** `λ`, so sampled it
+can only report *"no counterexample found"*, and *"returning `true` asserts a
+proof we did not perform."*
+
+But §16.4 later settled that exact question for containment and gave it a
+better answer: a nullable witness **conflates `Proven` with `NotRefuted`**. Over
+an `Enumerable` a ∀ is a proof; a `Counterexample?` cannot say so, and the caller
+must go and consult `isExhaustive`. §15.6 predates that, so its *mechanism* is
+stale by the same argument that §16.4 already won.
+
+**Proposed:** `findNonConvexity` returns a `Verdict`, exactly as containment
+does.
+
+**The wrinkle:** convexity's witness is a **triple** `(x₁, x₂, λ)`, not a point,
+while `Verdict<X>` ties the witness type to the domain's element type via
+`Verdict.of(witness: X?, domain: Domain<X>)`. `noWitness` reads nothing from the
+domain but `isExhaustive`, so the fix is small and additive:
+
+    Verdict.of(witness: W?, exhaustive: Boolean): Verdict<W>       // new
+    Verdict.noWitness(exhaustive: Boolean): Verdict<W>             // new
+    // existing Domain overloads stay, as the sugar they already are
+
+Then `findNonConvexity(over: Sampled): Verdict<ConvexityWitness>`, where the
+witness carries `x₁`, `x₂`, `λ` and the two degrees that break eq. (25) — which
+is what a reader needs to re-derive the failure by hand.
+
+#### 19.2 Shadow is **domain-generic** — §15.5 appears to have mis-classified it
+
+§15.5 lists `shadow` under "vector-space-bound". Reading p.350, it is not:
+
+> *"For notational simplicity, the notion of the shadow (projection) of A on a
+> hyperplane H will be defined below **for the special case where H is a
+> coordinate hyperplane**, e.g., `H = {x | x₁ = 0}`. Specifically, the shadow of
+> A on H is defined to be a fuzzy set `S_H(A)` in `E^{n−1}` with
+> `f_{S_H(A)}(x₂, …, xₙ) = Sup_{x₁} f_A(x₁, …, xₙ)`."*
+
+**Zadeh only ever defines the coordinate case, and it is a `Sup` over one
+coordinate — no scalar multiplication, no addition on X.** That is exactly
+`Product<A, B>` plus a fold, both of which 2a already ships:
+
+    fun <A, B> shadow(a: MembershipFn<Pair<A, B>>, over: Domain<A>): MembershipFn<B>
+
+He even flags it: *"this definition is consistent with (23)"* — eq. (23) being
+the mapping-induced set, i.e. the extension principle. The shadow **is** the
+extension principle along a projection.
+
+What *does* need the vector space is the shadow's **theorems** — *"If A is a
+convex fuzzy set, then its shadow on any hyperplane is also a convex fuzzy set"*,
+and `S_H(A) = S_H(B) for all H ⇒ A = B` (which ranges over *arbitrary* H, not
+coordinate ones).
+
+This is precisely the distinction §15.5 already drew for separation — *"the
+computation is domain-generic; only its meaning needs the vector space"* — and
+did not apply to its neighbour three lines up.
+
+**Proposed:** ship `shadow` domain-generically. It makes §15.4's claim that
+`Product` "earns itself twice" come true a slice early, and it is the same
+mechanism `fuzzy-relation` will want for eq. (23).
+
+**Against:** it lands `shadow` in a module whose remit is domain-generic Zadeh,
+while its *theorems* live in 2b — so the operation and its properties separate.
+That is already true of `height` (a query in 2a, whose §V theorems are 2b), so
+it is not a new seam, but it is worth saying out loud rather than discovering.
+
+#### 19.3 Separation ships a **theorem**, not eq. (31)'s definition
+
+Sharper than §15.5 implies, and it changes what the KDoc must say.
+
+The **definition** (p.351, eqs. **31**/**32**) is `D = 1 − M̃` where
+`M̃ = Inf_H M_H`, an infimum over **every hypersurface H in Eⁿ**. That is not
+computable, and not approximable by sampling.
+
+What is computable is the **theorem** (p.352):
+
+> *"Let A and B be **bounded convex** fuzzy sets in Eⁿ, with maximal grades M_A
+> and M_B … Let M be the maximal grade for the intersection A ∩ B
+> (`M = Sup_x Min[f_A(x), f_B(x)]`). Then **D = 1 − M**."*
+
+So `1 − height(intersection(a, b))` is **not the definition of D** — it is a
+theorem's right-hand side, and it is equal to `D` **only when both sets are
+bounded and convex**. Ship it as the definition and it silently returns a number
+for non-convex sets that is not their degree of separation.
+
+**Proposed:** `separationDegree(a, b, over)` computes `1 − M`, and its KDoc says
+plainly that this is p.352's theorem, names its preconditions, and points at
+`findNonConvexity`/`findUnboundedness` to check them. Preconditions unchecked at
+call time, per §4's split — the check is a fold, and the caller may already know.
+
+**Alternative considered:** return `Verdict`-like "cannot vouch for this unless
+convex". Rejected — the number is well-defined arithmetic; it is its *meaning*
+that has a precondition, and §4 says operations do not validate.
+
+#### 19.5 Strict convexity is **vacuous in ℝ¹** — **RATIFIED: dropped**
+
+§15.5 puts strict convexity in 2b's ℝ¹ tier. In ℝ¹ it is not a distinct property
+at all.
+
+Zadeh, p.349: *"A is **strictly convex** if the sets `Γ_α`, `0 < α ≤ 1` are
+strictly convex (that is, if the midpoint of any two distinct points in `Γ_α`
+lies in the **interior** of `Γ_α`)."*
+
+**In ℝ¹, every convex set is strictly convex.** A convex `Γ_α ⊆ ℝ` is an
+interval. Take distinct `x₁ < x₂` in `[a, b]`; the midpoint `m` satisfies
+`a ≤ x₁ < m < x₂ ≤ b`, so `a < m < b` — the interior. Degenerate and empty cuts
+are vacuous. So `strictly convex ⟺ convex`, and `findNonStrictConvexity` would
+return exactly what `findNonConvexity` returns.
+
+It is a genuine `ℝ^{n≥2}` notion: in ℝ² the square `[0,1]²` is convex and **not**
+strictly convex — the midpoint of `(0,0)` and `(1,0)` is `(0.5, 0)`, on the
+boundary. A disc is strictly convex. The distinction needs a dimension to
+work in.
+
+**Proposed: drop it from 2b**, and record why. Zadeh's caveat — *"strong
+convexity does not imply strict convexity or vice-versa"* — is a statement about
+Eⁿ, and it stops being informative at n=1. §15.5's ℝ¹ decision is not wrong;
+strict convexity is simply not something ℝ¹ can show you.
+
+#### 19.6 Boundedness is **unsamplable** — **RATIFIED: dropped**
+
+Worse than vacuous: not checkable in either direction.
+
+Zadeh, p.348: *"A fuzzy set A is **bounded** if and only if the sets
+`Γ_α = {x | f_A(x) ≥ α}` are bounded for all `α > 0`; that is, for every `α > 0`
+there exists a finite `R(α)` such that `‖x‖ ≤ R(α)` for all x in `Γ_α`."*
+
+A `Sampled` domain is a grid on a **bounded window** `[L, U]`. So:
+
+- **Cannot prove it.** `Γ_α ∩ [L, U]` is bounded because `[L, U]` is; that says
+  nothing about `f_A` at `x = 10⁶`.
+- **Cannot disprove it either** — and this is the part that makes it different
+  from convexity. A convexity *witness* is a genuine refutation (§16.4:
+  refutation is exact even where proof is not). An unboundedness witness would
+  have to be an unbounded `Γ_α`, which no bounded window can exhibit.
+
+The best a window can report is *"the α-cut touches the edge, so the set may
+extend"* — evidence, and not even one-directional evidence, since `f_A` may drop
+to zero immediately outside.
+
+So boundedness is the one §V property where **[Verdict] has nothing to say**:
+not `Proven`, not `Refuted`, and `NotRefuted` would overstate what was looked at.
+
+**Proposed: drop `findUnboundedness` from 2b**, and document boundedness as a
+**precondition** of §19.3's separation theorem that this library cannot check —
+which is honest, and which is what §19.3's KDoc already has to say about
+convexity anyway.
+
+**Alternative:** ship `alphaCutTouchesWindow(over, α): Boolean` under a name that
+claims only what it detects. Rejected unless asked for: it is a heuristic wearing
+a law suite's clothes, and §7 exists to keep those apart.
+
+#### 19.7 Most of §V's theorems are **not soundly checkable** — **RATIFIED**
+
+§19.4 promised "the §V theorems as `fuzzy-laws` suites". Building them, three of
+the four cannot be shipped as laws without lying about what they establish.
+
+The problem is structural, not incidental. **Every §V theorem is conditional on
+convexity, and over a `Sampled` grid convexity is never `Proven`** — only
+`NotRefuted` (§19.1). So the antecedent is never established, and a failure of the
+consequent does not indict anything:
+
+- **p.347, *"If A and B are convex, so is their intersection"*.** Suppose the
+  grid refutes `A ∩ B`. By the contrapositive, `A` or `B` is genuinely non-convex
+  — and the grid simply missed it. That is a **sampling gap, not a bug**, and a
+  suite reporting it as a violation would be blaming the code for the sampler.
+
+  **Now demonstrated rather than argued.** `min(gaussian, bimodal)` is genuinely
+  non-convex — it dips near `x ≈ 0.9`, where the Gaussian is still falling and the
+  bimodal set's valley has not recovered. A **5-point grid reports `NotRefuted`;
+  17 points report `Refuted`**. Same set, only the grid changed. A law reading
+  `NotRefuted` as "convex" would have believed the coarse grid, which says the
+  opposite of the truth. `fuzzy-laws`' own tests pin both readings.
+- **p.349, *"If A is a convex fuzzy set, then its core is a convex set"*.**
+  Same shape, same objection.
+- **p.350's corollary**, *"If X = E¹ and A is strongly convex, then the point at
+  which M is essentially attained is unique"* — **worse**: it fails on a grid for
+  genuinely strongly convex sets. A triangle peaked *between* two grid points has
+  two grid points tied for the maximal grade, so `maximalGradeSet` has two
+  elements and the corollary "fails" while the set is impeccably strongly convex.
+  The culprit is "essentially attained" — §18.3 already dropped that adverb as
+  topological, and this is where the amputation shows.
+- **p.352's separation theorem**, `D = 1 − M` — is `separationDegree`'s
+  *implementation* (§19.3). Checking it would be circular. Eq. (31)'s actual
+  definition, `Inf` over every hypersurface, is not computable.
+
+**What IS soundly checkable, and ships:**
+
+1. **strong convexity ⟹ convexity.** Any convexity refutation has
+   `f[at] < Min[…]`, which is also a strong-convexity refutation; and `x₁ = x₂`
+   cannot refute convexity, since there `at = x₁` and `f(x₁) ≥ f(x₁)`. So a
+   `Refuted` from `findNonConvexity` **forces** one from
+   `findNonStrongConvexity`.
+
+   **That second clause is a theorem about ℝ, and the code had to be made to
+   honour it.** Written as the textbook does — `λx₁ + (1 − λ)x₂` — it is *false*
+   in IEEE 754: at `x₁ = x₂ = 3.0, λ = 0.2` it yields `3.0000000000000004`, so
+   `f(at) < f(x₁)` and convexity is refuted at a point where eq. (25) is
+   trivially true. A **convex Gaussian was refuted this way**, and this law is
+   what caught it. `findNonConvexity` now interpolates `x₂ + λ(x₁ − x₂)` —
+   algebraically identical, exact when the endpoints coincide — and
+   `ConvexityWitness.at` matches it, or the witness would not reproduce.
+
+   Recorded because the pattern is by now familiar: the reasoning was sound
+   about the reals and the arithmetic was not, and only running it said so.
+2. **The §15.3 override guard.** An analytic `findNonConvexity` override must not
+   claim convexity where the generic search **found a witness** — a witness is
+   absolute (§16.4), so this direction is sound. The converse is not: an override
+   refuting where the generic search does not may simply be better informed.
+3. **Witness self-consistency.** A returned `ConvexityWitness` must actually
+   witness: `atSegment < minEndpoints`, and re-evaluating `f` at `at` must
+   reproduce `atSegment`.
+
+**Proposed:** `ConvexityLaws` ships (1)–(3). The four theorems go to `fuzzy-laws`'
+**own tests**, against fixtures whose convexity we control *by construction* (a
+triangle, a Gaussian) rather than by sampling — where the premise is known rather
+than guessed, so the theorem is a real check.
+
+The line is §7's: **a suite must not report as a violation something that is
+merely a sampling gap.** That would be a heuristic in a law suite's clothes, and
+it is the same objection that killed `alphaCutTouchesWindow` in §19.6.
+
+#### 19.4 Scope for 2b, after §19.1–§19.6
+
+Domain-generic (`Domain`, any X):
+- `FuzzySets.shadow` — §19.2, **ratified**.
+
+ℝ¹-bound (`DoubleMembershipFn` over a `Sampled` interval), per §15.5:
+- `findNonConvexity` — eq. **(25)**, p.347 → `Verdict<ConvexityWitness>` (§19.1).
+- `findNonStrongConvexity` — p.349, same shape with strict `>`.
+- `separationDegree` — §19.3, p.352's **theorem**, preconditions in KDoc.
+
+`fuzzy-laws` suites for the §V theorems:
+- *"If A and B are convex, so is their intersection"* — p.347.
+- *"If A is a convex fuzzy set, then its core is a convex set"* — p.349, where
+  "core" is Zadeh's `C(A)`, i.e. our `maximalGradeSet` (§18.3).
+- p.350's corollary: *"If X = E¹ and A is strongly convex, then the point at
+  which M is essentially attained is unique."* — the one theorem in §V that is
+  **stated for E¹ specifically**, so 2b is exactly where it can be checked.
+- p.352's separation theorem: `D = 1 − M` for bounded convex sets.
+
+**Dropped, with reasons recorded:** strict convexity (§19.5, vacuous in ℝ¹);
+boundedness (§19.6, unsamplable).
+
+**Out:** `VectorSpace<X>` (§15.5, an explicit non-goal); ℝⁿ convexity; the
+`S_H(A) = S_H(B) ⇒ A = B` theorem (ranges over arbitrary H).
+
+---
+
 ## Updated: 2026-07-15 — Zadeh 1965 read directly
 
 ### 18. The paper, read end to end — **ALL RATIFIED 2026-07-15**
