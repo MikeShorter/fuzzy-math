@@ -1,0 +1,18 @@
+fuzzy-math
+Copyright 2026 Mike (eusrbin.dk)
+
+This product includes software developed at eusrbin.dk.
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+---
+
+The mathematics implemented here is published work and is not owned by this
+project. Each operation cites its source in KDoc. The principal sources are:
+
+  Zadeh, L. A. (1965). "Fuzzy Sets". Information and Control 8:338–353.
+  Bergmann, M. (2008). "An Introduction to Many-Valued and Fuzzy Logic".
+      Cambridge University Press.
+  Klement, E. P., Mesiar, R. & Pap, E. (2000). "Triangular Norms". Springer.
+
+Citing them is a statement of provenance, not a claim of endorsement.

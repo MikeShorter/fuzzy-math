@@ -1,0 +1,40 @@
+# --- Gradle ---------------------------------------------------------------
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!src/**/build/
+
+# The wrapper jar IS committed — that is the point of the wrapper. Only the
+# local caches below are ignored.
+gradle-app.setting
+.gradletasknamecache
+
+# --- Build outputs --------------------------------------------------------
+out/
+bin/
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# --- IDEs / tooling -------------------------------------------------------
+.claude/settings.local.json
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.fleet/
+.kotlin/
+
+# --- OS -------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+
+# --- Credentials ----------------------------------------------------------
+# Publishing credentials belong in ~/.gradle/gradle.properties, never here
+# (see build-logic/src/main/kotlin/fuzzy.publishing-conventions.gradle.kts).
+# These patterns are a backstop against the mistake, not an invitation.
+local.properties
+secring.gpg
+*.gpg
+*.asc
