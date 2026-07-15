@@ -887,7 +887,14 @@ Note the separation degree's *computation* (`M = Sup_x Min[f_A, f_B]`,
 `D = 1 − M`) is domain-generic; only its *meaning* — that a separating
 hyperplane exists — needs the vector space. Ship it where the meaning holds.
 
-#### 15.6 `findNonConvexity()`, not `isConvex()`
+#### 15.6 `findNonConvexity()`, not `isConvex()` — **MECHANISM SUPERSEDED by §19.1**
+
+> **Read §19.1 before this section.** The *reasoning* below stands and was
+> never in doubt — a sampled ∀ cannot return `true` without asserting a proof
+> nobody performed. The **mechanism** is stale: `Counterexample?` conflates
+> `Proven` with `NotRefuted`, which §16.4 had already settled better for
+> containment. The shipped shape is `Verdict<ConvexityWitness>`. Do not build
+> a nullable witness from this section.
 
 Convexity quantifies over all `α ∈ (0,1]` **and** all `x` — both uncountable.
 Sampled, it can only ever report *"no counterexample found"*. Returning `true`
@@ -898,6 +905,13 @@ witness was found, which is what we actually know. This is §7's ethic — the
 reason `fuzzy-laws` reports counterexamples rather than booleans — applied to
 `fuzzy-set`. The same treatment applies to any sampled ∀ claim: containment and
 equality included.
+
+**Superseded (§19.1).** `null` is one value doing two jobs: over an `Enumerable`
+the ∀ *is* a proof, and a nullable witness cannot say so — it forces the caller
+off to consult `isExhaustive` and reassemble the answer. The three-valued
+`Verdict` says it directly. The last sentence above is the part that aged best:
+"the same treatment applies to any sampled ∀ claim" is exactly what §16.4 did,
+and §19.1 is that decision arriving back here.
 
 #### 15.7 Slice 2 splits: 2a and 2b
 
