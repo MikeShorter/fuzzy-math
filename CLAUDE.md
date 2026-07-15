@@ -8,7 +8,7 @@ file is wrong and should be fixed deliberately, not silently.
 
 ## Updated: 2026-07-15 — Slice 1 scaffolding
 
-### 14. Decisions surfaced while scaffolding — **AWAITING RATIFICATION**
+### 14. Decisions surfaced while scaffolding — **ALL RATIFIED 2026-07-15**
 
 These are choices the founding decisions did not cover, which building slice 1
 forced. Per §13 ("if a real decision surfaces that CLAUDE.md doesn't cover, add
@@ -16,7 +16,7 @@ it there and ask before coding around it") they are recorded here rather than
 buried in a build file. **Each is implemented as a single-line knob**, so
 ratifying or reversing any of them is a one-line change and not a refactor.
 
-§14.1, §14.2 and §14.6 are **ratified**. §14.3–§14.5 still stand open.
+§14.1–§14.6 are all **ratified** (2026-07-15).
 
 #### 14.1 JVM target: toolchain 24, bytecode 17 — **RATIFIED 2026-07-15**
 
@@ -92,7 +92,7 @@ configuration comes from that plugin and `kotlin("jvm")` applies only plain
 "Could not find method api()". `java-library` is correct here independently: it
 is what makes the api/implementation split real in the published POM.
 
-#### 14.3 Publishing via vanniktech 0.37.0, not plain `maven-publish`
+#### 14.3 Publishing via vanniktech 0.37.0, not plain `maven-publish` — **RATIFIED 2026-07-15**
 
 Not covered by §1, which names Maven Central as the channel but not the
 mechanism. OSSRH is retired; the stock `maven-publish` plugin has **no route to
@@ -106,10 +106,19 @@ DEPENDENCIES". Reversible: the convention plugin
 (`build-logic/.../fuzzy.publishing-conventions.gradle.kts`) is the only file
 that knows about it.
 
-POM `url`/`scm` currently point at `github.com/eusrbin/fuzzy-math`, which is a
-**guess** — correct it before the first publish.
+**Repo URL — RESOLVED 2026-07-15.** The POM `url`/`scm` guessed
+`github.com/eusrbin/fuzzy-math`, inferred from the groupId rather than from the
+account hosting the source. The repo is **`github.com/MikeShorter/fuzzy-math`**
+(alongside `vedic-research`); `developer` is id `MikeShorter`, name
+"Michael E Shorter". Corrected before the first push.
 
-#### 14.4 `fuzzy-laws`' published API is dependency-free and hand-samples
+Note the groupId stays `dk.eusrbin`: a Maven coordinate derived from a domain
+we own, unrelated to where the source is hosted. Only the URLs were wrong.
+Central surfaces `pom.url`/`pom.scm` on every artifact page, and published
+versions are immutable — a wrong URL there is wrong in public, permanently, for
+that version.
+
+#### 14.4 `fuzzy-laws`' published API is dependency-free and hand-samples — **RATIFIED 2026-07-15**
 
 §7 makes `fuzzy-laws` a consumable artifact — *"A user writing their own t-norm
 adds `fuzzy-laws` in test scope and calls `TNormLaws.verify(myTNorm)`"* — and
@@ -132,7 +141,7 @@ nothing structural to shrink to.
 `LawViolationException` extends `AssertionError` for the same reason: it must
 read as a test failure in a runner `fuzzy-laws` was never told about.
 
-#### 14.5 `TConormLaws` — a seventh suite, beyond §7's six
+#### 14.5 `TConormLaws` — a seventh suite, beyond §7's six — **RATIFIED 2026-07-15**
 
 §7's tier table names six suites. A seventh is implemented: `TConormLaws`.
 
@@ -144,6 +153,12 @@ but cannot verify is incomplete. The same reasoning that justifies the type
 justifies the suite.
 
 Trivial to drop if unwanted; nothing depends on it.
+
+**Ratified.** This closes a genuine inconsistency *between* two founding
+sections: §9 created the type, §7's table forgot to give it laws. §7 exists to
+stop a published extension point shipping without its correctness criteria —
+and §7's own table did exactly that. Keep the suite; §7's six-tier table is the
+thing that was wrong.
 
 #### 14.6 Numerical findings from the first test run — **RATIFIED 2026-07-15**
 
