@@ -441,6 +441,7 @@ t-norm. The laws therefore stratify:
 | Tier | Holds for | Laws |
 |---|---|---|
 | Universal | any t-norm | commutativity, associativity, monotonicity, boundary `T(x,1)=x` |
+| Universal (dual) | any t-conorm | the same, dualised — see §14.5 |
 | De Morgan | dual (T,S,N) triple | eqs. 7, 8 |
 | Residuated / BL | left-continuous T + residuum | residuation adjunction, divisibility, prelinearity |
 | MV | Łukasiewicz | MV-algebra axioms |
@@ -450,8 +451,18 @@ t-norm. The laws therefore stratify:
 Not internal tests. A user writing their own t-norm adds `fuzzy-laws` in test
 scope and calls `TNormLaws.verify(myTNorm)`. This operationalises "the sources
 are the spec", makes the library trustworthy in a way docs cannot, and ships
-the extension mechanism *with its correctness criteria attached*. `ZadehLaws`
+the extension mechanism *with its correctness criteria attached*. `StandardLaws`
 must **fail** for Product — provably, as a test of the test.
+
+> **Corrected — see §14.5.** The tier table above originally omitted the
+> t-conorm row, which left `TConorm` (a separate type by §9) implementable but
+> unverifiable — a published extension point with no correctness criteria,
+> i.e. precisely the failure this section exists to prevent, committed by this
+> section. `TConormLaws` closes it.
+>
+> Also: the suite is named `StandardLaws`, per §6's ratified naming. Earlier
+> drafts of this section called it `ZadehLaws`; the code is right and the name
+> here was stale.
 
 ### 8. Floating-point reality (tolerances live in `fuzzy-laws`)
 
@@ -463,10 +474,26 @@ The algebraic laws do **not** hold exactly in IEEE 754:
 - Łukasiewicz suffers cancellation.
 
 **Decision:** law tiers acquire a numerical dimension. Tolerances are
-calibrated **per algebra**, defined in one place inside `fuzzy-laws`, never
-scattered through test files. (Kazakov's alternative — discretising [0,1] to a
-fixed `Resolution` — is noted and **rejected**: it trades the whole continuum,
-and the parametric/analytic path, for exactness we can get with tolerances.)
+calibrated in one place inside `fuzzy-laws`, never scattered through test
+files. (Kazakov's alternative — discretising [0,1] to a fixed `Resolution` — is
+noted and **rejected**: it trades the whole continuum, and the
+parametric/analytic path, for exactness we can get with tolerances.)
+
+> **Superseded in part — see §14.6(a).** This section originally said
+> tolerances calibrate **per algebra**. They calibrate **per operation**.
+>
+> The bullets above are correct as written: they are claims about min/max, and
+> min/max *are* exactly associative and idempotent. The error was over-applying
+> them to a whole *algebra*. `Standard` is min/max **and `1 − x`** — and
+> `1 − x` is arithmetic, not lattice selection, so it is not exact
+> (`a = 1/3 → 1 − (1 − a) = 0.33333333333333326`). Calibrating `EXACT` for the
+> algebra made Zadeh's own complement fail its own suite.
+>
+> So: `forTNorm`/`forAlgebra` calibrate the monoid side, `forNegation` the
+> negation (never `EXACT`), and suites spanning both combine with `looserOf`.
+> An expression is no more exact than its sloppiest term. `StandardLaws` stays
+> at `EXACT` and still passes — idempotence, distributivity and absorption
+> touch nothing but min/max.
 
 ### 9. JVM interop rules (binding on all public API)
 
