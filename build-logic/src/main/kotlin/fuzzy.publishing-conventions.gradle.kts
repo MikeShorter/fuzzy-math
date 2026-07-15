@@ -7,8 +7,8 @@ import com.vanniktech.maven.publish.KotlinJvm
 // on Maven Central, and Maven Central *is* the distribution channel for JVM
 // libraries."
 //
-// CONFIGURED BUT NOT PUBLISHED (SCAFFOLD_PROMPT deliverable 4). Nothing here
-// uploads anything; `publishToMavenCentral()` only *registers* the target.
+// CONFIGURED BUT NOT PUBLISHED. Nothing here uploads anything;
+// `publishToMavenCentral()` only *registers* the target.
 //
 // Why a third-party plugin (CLAUDE.md §14.3): OSSRH is retired, so the stock
 // `maven-publish` plugin has no route to the Central Portal on its own — it
@@ -62,7 +62,7 @@ mavenPublishing {
             },
         )
         inceptionYear.set("2026")
-        url.set("https://github.com/eusrbin/fuzzy-math")
+        url.set("https://github.com/MikeShorter/fuzzy-math")
 
         licenses {
             license {
@@ -74,16 +74,16 @@ mavenPublishing {
 
         developers {
             developer {
-                id.set("eusrbin")
-                name.set("Mike")
+                id.set("MikeShorter")
+                name.set("Michael E Shorter")
                 url.set("https://eusrbin.dk")
             }
         }
 
         scm {
-            url.set("https://github.com/eusrbin/fuzzy-math")
-            connection.set("scm:git:https://github.com/eusrbin/fuzzy-math.git")
-            developerConnection.set("scm:git:ssh://git@github.com/eusrbin/fuzzy-math.git")
+            url.set("https://github.com/MikeShorter/fuzzy-math")
+            connection.set("scm:git:https://github.com/MikeShorter/fuzzy-math.git")
+            developerConnection.set("scm:git:ssh://git@github.com/MikeShorter/fuzzy-math.git")
         }
     }
 }

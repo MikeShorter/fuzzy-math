@@ -153,13 +153,11 @@ Binding on all public API:
 
 ## Building
 
-Mike runs all tooling. See `SCAFFOLD_PROMPT.md` and the hand-off notes for
-current commands. In brief:
+The Gradle wrapper is committed, so a JDK is the only prerequisite.
 
 ```bash
-gradle wrapper --gradle-version 9.6.1   # once
-./gradlew build                          # compile + test
-./gradlew publishToMavenLocal            # dry-run the publishing config
+./gradlew build                  # compile + test
+./gradlew publishToMavenLocal    # install locally to try it in another project
 ```
 
 ## Roadmap
