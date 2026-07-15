@@ -6,6 +6,145 @@ file is wrong and should be fixed deliberately, not silently.
 
 ---
 
+## Updated: 2026-07-15 — Slice 2 design (§3 restructured)
+
+### 15. The capability seam, corrected — **AWAITING RATIFICATION**
+
+§3 was written before any of it existed. Reading it back against slice 1's code,
+three of its four `Domain` cases are wrong, and its central claim quietly
+contradicts its own design. §15 supersedes §3 where they disagree; §3's
+*motivation* (some operations need `Sup`, and asking for one you cannot compute
+must be a compile error) stands unchanged and is met more cheaply here.
+
+#### 15.1 The domain is a parameter of analysis, not part of a set
+
+§3 says pointwise operations are *"representation-free. Work over any X,
+lazily, given only a membership function. **No domain needed**."* That sentence
+is the refutation of putting the domain on the set. If a fuzzy set does not need
+a domain to *be* one, the domain is not part of its identity.
+
+**Rejected** — domain in the set's type:
+
+    class FuzzySet<X, D : Domain<X>>
+    fun <X, D : Searchable<X>> FuzzySet<X, D>.height(): Double
+
+**Decided** — domain at the call site that needs it:
+
+    class FuzzySet<X>
+    fun <X> FuzzySet<X>.height(over: Domain<X>): Double
+
+The compile-time guarantee §3 demands is *stronger* this way, not weaker: you
+cannot ask for a `Sup` without producing a `Domain<X>` to supply it. The type
+system enforces it by the ordinary mechanism of a required argument.
+
+What it buys beyond that:
+- pointwise ops stay trivially closed — `union(A, B) : FuzzySet<X>`, with no
+  domain algebra to invent for the result;
+- one type parameter instead of two, everywhere, forever — and §9's Java
+  signatures stay legible;
+- **the same set, analysed over different domains**: sample coarsely, then
+  finely, and watch the answers converge. §3's shape made that a type error.
+
+#### 15.2 `Opaque` is not a type. It is the absence of a domain.
+
+Falls out of §15.1. §3 listed `Opaque` ("pointwise only") as a `Domain` case,
+which is a contradiction: it is the one case that *cannot* answer the only
+question a `Domain` exists to answer.
+
+**Decided:** delete it. Under §15.1 an opaque X is simply one you have no
+`Domain` for, and every `Sup` operation is then unreachable — exactly §3's
+requirement, with one fewer concept.
+
+#### 15.3 `Parametric` was a category error. Closed forms are overrides.
+
+`Enumerable` and `Sampled` describe **the carrier**: what X is, and how to fold
+over it. `Parametric` described **the membership function** — "this is a
+triangle, so its Sup is analytic and I need not search at all." Those are not
+the same kind of thing, and §3 conflated "what the domain is" with "how a Sup
+is computed."
+
+**Decided:** closed forms are **overrides on the function**, following the
+pattern slice 1 already established. `TNorm.residuum` has a generic bisection
+default that every named t-norm overrides with its closed form ("you only pay
+for bisection on a t-norm you wrote yourself"). Identically: `height(over:)`
+folds by default, and a `TriangularNumber` overrides it with the analytic
+answer and ignores the domain entirely.
+
+So the closed forms live on the function that knows them, not on the carrier
+that does not — and slice 2 gains no new pattern, it reuses slice 1's.
+
+#### 15.4 `Domain<X>` is generic. `Sampled` is one-dimensional.
+
+§3's four cases collapse to **two**: `Enumerable<X>` (fold over elements) and
+`Sampled` (fold over a grid; approximate), plus §15.3's overrides, plus
+§15.2's "no domain".
+
+`Sampled` is a grid over an interval of **ℝ**, not ℝⁿ. Grid-sampling is tractable
+in one dimension and nowhere else: 1000 points/dim is 10⁶ evaluations in ℝ² and
+10⁹ in ℝ³. That is a wall, and it is documented as one rather than papered over.
+
+`Product(Domain<A>, Domain<B>) : Domain<Pair<A,B>>` covers X×Y. It earns itself
+twice: `fuzzy-relation` (§10) needs exactly this for `Sup_v Min[...]`
+(Zadeh p.346) and for the extension principle (eq. 23).
+
+#### 15.5 Zadeh §V needs a **vector space**, not a domain
+
+The finding that splits slice 2. Convexity is
+
+    f_A[λx₁ + (1−λ)x₂] ≥ Min[f_A(x₁), f_A(x₂)]        (Zadeh eq. 25)
+
+and `λx₁ + (1−λ)x₂` requires **scalar multiplication and addition on X**. A
+`Domain<X>` can *search* X; it cannot form the line segment between two of its
+points. Zadeh states the precondition himself (p.347): *"we assume for
+concreteness that X is a real Euclidean space Eⁿ."* §V is therefore not
+domain-generic — it needs strictly more structure than the rest of §3.
+
+This cleanly divides the module:
+
+- **domain-generic, any X** — height, support, core, α-cuts, strong α-cuts,
+  decomposition, cardinality, containment, equality, emptiness.
+- **vector-space-bound** — convexity, strict/strong convexity, boundedness,
+  shadow, separation degree `D = 1 − M`.
+
+**Decided:** the second group is **ℝ¹ only** in slice 2b (`DoubleMembershipFn`
+over a `Sampled` interval), which is where Zadeh's own Figures 1/4/5 and his
+p.350 corollary (*"If X = E¹ and A is strongly convex..."*) live. A
+`VectorSpace<X>` capability is a **non-goal** until something asks for it;
+raising that ceiling later is easy, and nothing in §10's graph needs ℝⁿ.
+
+Note the separation degree's *computation* (`M = Sup_x Min[f_A, f_B]`,
+`D = 1 − M`) is domain-generic; only its *meaning* — that a separating
+hyperplane exists — needs the vector space. Ship it where the meaning holds.
+
+#### 15.6 `findNonConvexity()`, not `isConvex()`
+
+Convexity quantifies over all `α ∈ (0,1]` **and** all `x` — both uncountable.
+Sampled, it can only ever report *"no counterexample found"*. Returning `true`
+asserts a proof we did not perform.
+
+**Decided:** `findNonConvexity(over:): Counterexample?`. `null` means no
+witness was found, which is what we actually know. This is §7's ethic — the
+reason `fuzzy-laws` reports counterexamples rather than booleans — applied to
+`fuzzy-set`. The same treatment applies to any sampled ∀ claim: containment and
+equality included.
+
+#### 15.7 Slice 2 splits: 2a and 2b
+
+§12 sized slice 1 at two modules. `fuzzy-set` as §10 scopes it is substantially
+larger. §15.5 supplies a natural seam, so:
+
+- **2a** — `MembershipFn`/`DoubleMembershipFn`, the pointwise algebra (Zadeh
+  §II–IV), hedges, `Domain` (`Enumerable`, `Sampled`, `Product`), height,
+  support, core, α-cuts, decomposition, cardinality, containment/equality/
+  emptiness. Domain-generic throughout.
+- **2b** — Zadeh §V: convexity, boundedness, shadow, separation. ℝ¹-bound per
+  §15.5.
+
+§12's thesis still applies: `fuzzy-laws` gains suites for 2a's own
+laws (De Morgan over sets, decomposition round-trip) in the same slice.
+
+---
+
 ## Updated: 2026-07-15 — Slice 1 scaffolding
 
 ### 14. Decisions surfaced while scaffolding — **ALL RATIFIED 2026-07-15**

@@ -18,6 +18,9 @@ bin/
 
 # --- IDEs / tooling -------------------------------------------------------
 .claude/settings.local.json
+# Per-slice Claude Code brief. Process exhaust, not a description of what
+# exists — CLAUDE.md is the record that survives. Rewritten each slice.
+PROMPT.md
 .idea/
 *.iml
 *.ipr
