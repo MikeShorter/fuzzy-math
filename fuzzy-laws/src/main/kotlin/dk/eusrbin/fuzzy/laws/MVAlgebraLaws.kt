@@ -69,7 +69,12 @@ public object MVAlgebraLaws {
     @JvmOverloads
     public fun verify(
         algebra: Algebra,
-        tolerance: Tolerance = Tolerance.forAlgebra(algebra),
+        // MV5, MV7 and MV8 all go through `¬`, so — as in DeMorganLaws — the
+        // negation's numerics set the floor. Tolerance's KDoc has the detail.
+        tolerance: Tolerance = Tolerance.looserOf(
+            Tolerance.forAlgebra(algebra),
+            Tolerance.forNegation(algebra.negation),
+        ),
         sampling: Sampling = Sampling.DEFAULT,
     ) {
         check(algebra, tolerance, sampling).assertHolds()
@@ -80,7 +85,12 @@ public object MVAlgebraLaws {
     @JvmOverloads
     public fun check(
         algebra: Algebra,
-        tolerance: Tolerance = Tolerance.forAlgebra(algebra),
+        // MV5, MV7 and MV8 all go through `¬`, so — as in DeMorganLaws — the
+        // negation's numerics set the floor. Tolerance's KDoc has the detail.
+        tolerance: Tolerance = Tolerance.looserOf(
+            Tolerance.forAlgebra(algebra),
+            Tolerance.forNegation(algebra.negation),
+        ),
         sampling: Sampling = Sampling.DEFAULT,
     ): LawReport {
         val checker = LawChecker("MVAlgebraLaws", algebra.toString(), tolerance, sampling)

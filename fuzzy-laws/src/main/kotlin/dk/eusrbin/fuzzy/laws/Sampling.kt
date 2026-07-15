@@ -44,9 +44,32 @@ import java.util.Random
  * | `0.0`, `1.0` | the boundary conditions `T(a,1) = a`, `T(a,0) = 0` live here |
  * | `0.5` | fixed point of the standard negation; `0.5 + 0.5 = 1` exactly, straddling the Łukasiewicz and nilpotent cutoffs |
  * | `0.25`, `0.75` | sum to `1.0` exactly — the same cutoffs, off-centre |
- * | `Double.MIN_VALUE` | smallest positive subnormal: distinguishes "zero" from "nearly zero" |
+ * | `ulp(1)` ≈ 2.2e-16 | distinguishes "zero" from "nearly zero" |
  * | `1 − ulp(1)` | largest double below 1: distinguishes "one" from "nearly one", which is exactly where [dk.eusrbin.fuzzy.algebra.TNorms.DRASTIC] changes behaviour |
  * | `1/3` | not representable in binary; forces a rounding on every operation |
+ *
+ * ## Why `Double.MIN_VALUE` is deliberately NOT in that list
+ *
+ * It was, and it had to come out. `ulp(1)` is the "nearly zero" probe instead,
+ * and the difference is not fussiness.
+ *
+ * **In the subnormal range, IEEE 754 multiplication is not strictly monotone**,
+ * so the floating-point Product t-norm is not the Product t-norm:
+ * `4.9e-324 × 0.5` underflows to *exactly* `0.0`. Residuation then fails on its
+ * own terms — `T(a, 0.5) ≤ 0` holds, so the adjunction demands
+ * `0.5 ≤ (a ⇒ 0) = b/a = 0`, and it does not. No tolerance repairs this; the
+ * gap is `0.5`.
+ *
+ * That is a true statement about `double`, and a useless one about anybody's
+ * t-norm. A user checking their own work would be told their arithmetic is
+ * broken at `1e-324`, which is not a membership degree, cannot arise from any
+ * meaningful computation, and is not their bug. Sampling there manufactures
+ * failures the suite exists to rule out.
+ *
+ * `ulp(1)` keeps the "distinguishes zero from nearly zero" coverage without
+ * entering the regime where the arithmetic stops modelling the mathematics.
+ * The underflow itself is not swept away — it is documented on
+ * [dk.eusrbin.fuzzy.algebra.TNorm.residuum] and pinned by its own test.
  *
  * @property randomDegrees how many seeded random degrees to add to the edge set.
  * @property seed the seed. Fixed by default; vary it to widen coverage across runs.
@@ -83,7 +106,10 @@ public class Sampling private constructor(
             0.5,
             0.25,
             0.75,
-            Double.MIN_VALUE,
+            // "Nearly zero" — NOT Double.MIN_VALUE. See the class KDoc: the
+            // subnormals are where float multiplication stops being monotone
+            // and every t-norm fails residuation for reasons that are not its.
+            Math.ulp(1.0),
             1.0 - Math.ulp(1.0),
             1.0 / 3.0,
         )
@@ -118,5 +144,19 @@ public class Sampling private constructor(
             require(randomDegrees >= 0) { "randomDegrees must be ≥ 0, but was $randomDegrees" }
             return Sampling(randomDegrees, seed)
         }
+
+        // There is deliberately no `interior()` factory dropping the edge cases.
+        //
+        // One existed briefly, to let a Yager-based De Morgan triple be checked
+        // "away from the boundary where it is ill-conditioned". That premise was
+        // wrong: Yager's involutivity error grows like `a^(1−w)` — a gradient
+        // with no floor, not a cliff at the edge — so interior sampling does not
+        // scope the problem, it only relocates it, and whether you notice comes
+        // down to which random draws you got. See Negations.yager.
+        //
+        // The general point is worth more than the case. Public API added to
+        // stop a suite reporting something true is not scoping, it is
+        // suppression with a nicer name. If a law fails, either the subject is
+        // wrong or the claim is; narrowing the sample answers neither.
     }
 }

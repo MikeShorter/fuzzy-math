@@ -59,7 +59,14 @@ public object DeMorganLaws {
         tNorm: TNorm,
         tConorm: TConorm,
         negation: Negation,
-        tolerance: Tolerance = Tolerance.forTNorm(tNorm),
+        // Both sides of a De Morgan equation mix the monoid with the negation,
+        // so the tolerance must accommodate whichever is sloppier. Calibrating
+        // off the t-norm alone yields EXACT for the Standard algebra, under
+        // which Zadeh's own `1 − x` fails involutivity — see Tolerance's KDoc.
+        tolerance: Tolerance = Tolerance.looserOf(
+            Tolerance.forTNorm(tNorm),
+            Tolerance.forNegation(negation),
+        ),
         sampling: Sampling = Sampling.DEFAULT,
     ) {
         check(tNorm, tConorm, negation, tolerance, sampling).assertHolds()
@@ -78,7 +85,10 @@ public object DeMorganLaws {
     @JvmOverloads
     public fun verify(
         algebra: Algebra,
-        tolerance: Tolerance = Tolerance.forAlgebra(algebra),
+        tolerance: Tolerance = Tolerance.looserOf(
+            Tolerance.forAlgebra(algebra),
+            Tolerance.forNegation(algebra.negation),
+        ),
         sampling: Sampling = Sampling.DEFAULT,
     ) {
         check(algebra, tolerance, sampling).assertHolds()
@@ -91,7 +101,14 @@ public object DeMorganLaws {
         tNorm: TNorm,
         tConorm: TConorm,
         negation: Negation,
-        tolerance: Tolerance = Tolerance.forTNorm(tNorm),
+        // Both sides of a De Morgan equation mix the monoid with the negation,
+        // so the tolerance must accommodate whichever is sloppier. Calibrating
+        // off the t-norm alone yields EXACT for the Standard algebra, under
+        // which Zadeh's own `1 − x` fails involutivity — see Tolerance's KDoc.
+        tolerance: Tolerance = Tolerance.looserOf(
+            Tolerance.forTNorm(tNorm),
+            Tolerance.forNegation(negation),
+        ),
         sampling: Sampling = Sampling.DEFAULT,
     ): LawReport {
         val subject = "($tNorm, $tConorm, $negation)"
@@ -127,7 +144,10 @@ public object DeMorganLaws {
     @JvmOverloads
     public fun check(
         algebra: Algebra,
-        tolerance: Tolerance = Tolerance.forAlgebra(algebra),
+        tolerance: Tolerance = Tolerance.looserOf(
+            Tolerance.forAlgebra(algebra),
+            Tolerance.forNegation(algebra.negation),
+        ),
         sampling: Sampling = Sampling.DEFAULT,
     ): LawReport {
         val report = check(algebra.tNorm, algebra.tConorm, algebra.negation, tolerance, sampling)

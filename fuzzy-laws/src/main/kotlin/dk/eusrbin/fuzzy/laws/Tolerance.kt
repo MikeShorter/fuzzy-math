@@ -1,6 +1,8 @@
 package dk.eusrbin.fuzzy.laws
 
 import dk.eusrbin.fuzzy.algebra.Algebra
+import dk.eusrbin.fuzzy.algebra.Negation
+import dk.eusrbin.fuzzy.algebra.Negations
 import dk.eusrbin.fuzzy.algebra.TNorm
 import dk.eusrbin.fuzzy.algebra.TNorms
 import kotlin.math.abs
@@ -33,6 +35,31 @@ import kotlin.math.abs
  * `Resolution`, discretising `[0,1]` so that everything is exact: *"it trades
  * the whole continuum, and the parametric/analytic path, for exactness we can
  * get with tolerances."*
+ *
+ * ## Calibration follows the OPERATIONS a suite uses, not the algebra's name
+ *
+ * The subtlety that matters, and the one that first shipped wrong here.
+ *
+ * CLAUDE.md §8 says min/max are exactly associative and idempotent, so "the
+ * Zadeh tier is safe with exact equality". True — and it is a claim about
+ * **min/max**, not about [Algebra.STANDARD]. The Standard algebra also contains
+ * the negation `1 − x`, and **`1 − x` is not exactly involutive in IEEE 754**:
+ *
+ * ```
+ * a = 1/3          1 − a = 0.6666666666666667   (rounded — a tie, broken to even)
+ * 1 − (1 − a) = 0.33333333333333326  ≠  0.3333333333333333   (Δ = 5.55e-17)
+ * ```
+ *
+ * So [EXACT] is right for [StandardLaws] — idempotence, distributivity and
+ * absorption touch nothing but min/max — and *wrong* for [DeMorganLaws] and
+ * [MVAlgebraLaws], which lean on `N(N(a)) = a`. Same algebra, different suites,
+ * different correct epsilon.
+ *
+ * Hence [forTNorm] and [forAlgebra] calibrate the **lattice/monoid** side, while
+ * [forNegation] calibrates the negation, and suites that use both combine them
+ * with [looserOf]. Reading a tolerance off the algebra alone is exactly the
+ * mistake that made a correct implementation of Zadeh's own complement look
+ * like a bug.
  *
  * ## Absolute, not relative
  *
@@ -67,13 +94,18 @@ public class Tolerance private constructor(
         /**
          * Exact equality — `ε = 0`.
          *
-         * Correct for the Zadeh/Gödel tier and nothing else. CLAUDE.md §8:
-         * *"min/max are exactly associative and idempotent → the Zadeh tier is
-         * safe with exact equality."*
+         * Correct for **min/max and nothing else**. CLAUDE.md §8: *"min/max are
+         * exactly associative and idempotent → the Zadeh tier is safe with exact
+         * equality."*
          *
          * This is not laxity avoided, it is information gained: if
          * `StandardLaws.check(Algebra.STANDARD)` ever needed an epsilon, `min`
          * or `max` would have stopped being `min` or `max`.
+         *
+         * Read the scope narrowly. This applies to the lattice operations, which
+         * *select* an operand and never *compute* one. It does **not** extend to
+         * the Standard algebra's negation — see the class KDoc on why `1 − x` is
+         * not exactly involutive, and [forNegation].
          */
         @JvmField
         public val EXACT: Tolerance = Tolerance("Exact", 0.0)
@@ -161,17 +193,56 @@ public class Tolerance private constructor(
         }
 
         /**
-         * The calibrated tolerance for [algebra].
+         * The calibrated tolerance for [algebra]'s **t-norm and t-conorm**.
          *
-         * [Algebra.STANDARD] is [EXACT] — the whole Zadeh/Gödel tier is exact in
-         * IEEE 754. Others defer to [forTNorm], since the conorm and negation of
-         * every built-in bundle are arithmetically no worse than the t-norm they
-         * are dual to.
+         * [Algebra.STANDARD] is [EXACT]: min and max select an operand rather
+         * than computing one, so nothing rounds.
+         *
+         * **This does not cover the algebra's negation.** A suite that touches
+         * `N` must widen with [forNegation] — see the class KDoc, and note that
+         * `Algebra.STANDARD`'s own `1 − x` fails involutivity at [EXACT]. The
+         * name says `forAlgebra` because an algebra is what you have in hand;
+         * what it calibrates is the monoid side.
          */
         @JvmStatic
         public fun forAlgebra(algebra: Algebra): Tolerance = when (algebra) {
             Algebra.STANDARD -> EXACT
             else -> forTNorm(algebra.tNorm)
         }
+
+        /**
+         * The calibrated tolerance for [negation].
+         *
+         * Never [EXACT], and [Negations.STANDARD] is the reason why. `1 − x`
+         * looks as exact as `min` and is not: for `a ∈ [0, 0.5)` the subtraction
+         * rounds, so `1 − (1 − a) = a − δ`. The round trip is off by up to half
+         * an ulp of 1 — `5.55e-17`, comfortably inside [ARITHMETIC], and
+         * comfortably outside [EXACT].
+         *
+         * The parametric families divide ([Negations.sugeno]) or take logs and
+         * exponentials ([Negations.yager]), so they get [GENERAL].
+         */
+        @JvmStatic
+        public fun forNegation(negation: Negation): Tolerance = when (negation) {
+            // 1 − x: arithmetic, not lattice selection. Involutive only to
+            // within a rounding of the subtraction.
+            Negations.STANDARD -> ARITHMETIC
+            // Sugeno divides; Yager goes through ln/expm1. Neither is worse than
+            // GENERAL once Yager is evaluated in a well-conditioned form.
+            else -> GENERAL
+        }
+
+        /**
+         * The looser of two tolerances.
+         *
+         * For suites spanning operations with different numerics — [DeMorganLaws]
+         * relates a t-norm, a conorm and a negation in one equation, and the
+         * result can be no more exact than its sloppiest ingredient. Taking the
+         * looser is the only sound combination: the alternative is holding an
+         * expression to a standard one of its own terms cannot meet.
+         */
+        @JvmStatic
+        public fun looserOf(a: Tolerance, b: Tolerance): Tolerance =
+            if (a.epsilon >= b.epsilon) a else b
     }
 }

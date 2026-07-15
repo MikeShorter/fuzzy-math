@@ -130,18 +130,62 @@ class KnownValuesTest : FunSpec({
 
         test("... and diverges on subnormals, exactly as TNorm.residuum documents") {
             // Pinning a documented limitation so the KDoc cannot quietly rot.
-            // Product at a = MIN_VALUE, b = 0: MIN_VALUE·0.5 underflows to 0.0,
-            // so the FLOAT t-norm really is flat there and bisection is right
-            // about the function it can see.
+            //
+            // In the subnormal range IEEE 754 multiplication is not strictly
+            // monotone, so the FLOAT Product t-norm is not the Product t-norm.
+            // Bisection is not wrong about it — it is right about the only
+            // function it can observe.
+            //
+            // The exact landing point is round-half-to-even: MIN_VALUE·z is
+            // exactly halfway between 0 and MIN_VALUE at z = 0.5, and 0 is the
+            // even neighbour, so it underflows to 0 for z ≤ 0.5 and rounds up to
+            // MIN_VALUE above. Bisection therefore converges on 0.5 exactly.
             (Double.MIN_VALUE * 0.5) shouldBe 0.0
+            (Double.MIN_VALUE * 0.75) shouldBe Double.MIN_VALUE
 
             val opaque = TNorm { a, b -> a * b }
-            opaque.residuum(Double.MIN_VALUE, 0.0) shouldBe (1.0 plusOrMinus 1e-9)
-            TNorms.PRODUCT.residuum(Double.MIN_VALUE, 0.0) shouldBe 0.0
+            opaque.residuum(Double.MIN_VALUE, 0.0) shouldBe 0.5   // the float function's sup
+            TNorms.PRODUCT.residuum(Double.MIN_VALUE, 0.0) shouldBe 0.0 // b/a — the real one's
 
             // Away from the subnormals the two agree, as the test above asserts
             // wholesale. This is the same claim at one concrete point.
             opaque.residuum(0.8, 0.4) shouldBe (TNorms.PRODUCT.residuum(0.8, 0.4) plusOrMinus 1e-12)
+        }
+
+        test("1 − x is NOT exactly involutive — why EXACT is wrong for any law using N") {
+            // The assumption that shipped wrong: CLAUDE.md §8's "the Zadeh tier
+            // is safe with exact equality" is a claim about min/max, and the
+            // Standard algebra's negation is arithmetic, not lattice selection.
+            val a = 1.0 / 3.0
+            val roundTripped = Algebra.STANDARD.not(Algebra.STANDARD.not(a))
+            (roundTripped == a) shouldBe false
+            roundTripped shouldBe (a plusOrMinus 1e-15)
+
+            // Which is exactly what Tolerance.forNegation exists to encode...
+            Tolerance.forNegation(Negations.STANDARD) shouldBe Tolerance.ARITHMETIC
+
+            // ... and why DeMorganLaws/MVAlgebraLaws must not inherit EXACT from
+            // the algebra, while StandardLaws — min/max only — still may.
+            DeMorganLaws.check(Algebra.STANDARD).tolerance shouldBe Tolerance.ARITHMETIC
+            MVAlgebraLaws.check(Algebra.STANDARD).tolerance shouldBe Tolerance.ARITHMETIC
+            StandardLaws.check(Algebra.STANDARD).tolerance shouldBe Tolerance.EXACT
+        }
+
+        test("the Yager negation stays involutive near a = 1, where the naive form collapses") {
+            // Regression: (1 − a^w)^(1/w) evaluated literally loses every
+            // significant bit to cancellation near a = 1, giving ~8% relative
+            // error and a spurious De Morgan failure. See YagerNegation's KDoc.
+            val yager = Negations.yager(2.476662004953192)
+            val nearOne = 1.0 - Math.ulp(1.0)
+
+            val n = yager.apply(nearOne)
+            Degrees.isDegree(n) shouldBe true
+            // The naive form returns ~6.4e-7 here against a true ~6.9e-7.
+            yager.apply(n) shouldBe (nearOne plusOrMinus 1e-12)
+
+            // Boundaries must survive the ln/expm1 route intact.
+            yager.apply(0.0) shouldBe 1.0
+            yager.apply(1.0) shouldBe 0.0
         }
 
         test("Algebra.implication is always the t-norm's residuum — never a parameter") {

@@ -16,7 +16,7 @@ it there and ask before coding around it") they are recorded here rather than
 buried in a build file. **Each is implemented as a single-line knob**, so
 ratifying or reversing any of them is a one-line change and not a refactor.
 
-§14.1 and §14.2 are **ratified**. §14.3–§14.5 still stand open.
+§14.1, §14.2 and §14.6 are **ratified**. §14.3–§14.5 still stand open.
 
 #### 14.1 JVM target: toolchain 24, bytecode 17 — **RATIFIED 2026-07-15**
 
@@ -144,6 +144,100 @@ but cannot verify is incomplete. The same reasoning that justifies the type
 justifies the suite.
 
 Trivial to drop if unwanted; nothing depends on it.
+
+#### 14.6 Numerical findings from the first test run — **RATIFIED 2026-07-15**
+
+First `./gradlew build`: compiled clean, 72/78 tests passed, and all six failures
+were real. §7's required test-of-the-test passed — `StandardLaws` does fail for
+Product. Three of the six were bugs in `fuzzy-laws` itself, which is the artifact
+working as intended: it caught its own author.
+
+**(a) `1 − x` is not exactly involutive, so tolerance calibrates per OPERATION,
+not per algebra.** The important one.
+
+§8 says min/max are exactly associative and idempotent, so "the Zadeh tier is
+safe with exact equality". **§8 is correct as written** — it is a claim about
+min/max. The bug was in over-applying it: `Tolerance.forAlgebra(STANDARD)`
+returned `EXACT`, and `DeMorganLaws`/`MVAlgebraLaws` then inherited it for laws
+that go through the *negation*. But `1 − x` is arithmetic, not lattice selection:
+
+    a = 1/3   →   1 − (1 − a) = 0.33333333333333326   (Δ = 5.55e-17)
+
+So Zadeh's own complement, correctly implemented, failed its own suite.
+`StandardLaws` at `EXACT` remains correct and still passes, because idempotence,
+distributivity and absorption touch nothing but min/max.
+
+**Decided:** `forTNorm`/`forAlgebra` calibrate the monoid side; new
+`forNegation` calibrates the negation (never `EXACT`); suites spanning both
+combine with `looserOf`. An expression is no more exact than its sloppiest term.
+
+**(b) Subnormals are out of the sampling pool.** `Double.MIN_VALUE` is replaced
+by `ulp(1)` ≈ 2.2e-16 as the "nearly zero" probe.
+
+In the subnormal range IEEE 754 multiplication is not strictly monotone —
+`4.9e-324 × 0.5` underflows to exactly `0.0` — so the *floating-point* Product
+t-norm is not the Product t-norm, and residuation fails by a gap of `0.5` that
+no tolerance can close. True of `double`; useless about anybody's t-norm. A user
+checking their own work would be told their arithmetic breaks at `1e-324`, which
+is not a membership degree and is not their bug.
+
+Not swept away: the underflow is documented on `TNorm.residuum` and pinned by
+its own test, which also records that bisection lands on exactly `0.5` there by
+round-half-to-even.
+
+**(c) `Negations.yager` is NOT involutive in `double` for `w ≠ 1`, anywhere.**
+The claim that a Yager De Morgan triple verifies has been **withdrawn**, not
+scoped. Recorded at length because it took three wrong diagnoses to get here,
+and the wrong turns are the instructive part.
+
+Mathematically `N_w(N_w(a)) = a` always. In IEEE 754:
+
+```
+|N_w(N_w(a)) − a|  ≈  5.55e-17 · a^(1−w)
+```
+
+For `w > 1` that is **unbounded as `a → 0`**. Measured at `w = 4.25`: `5.6e-17`
+at `a = 0.5`, `2.1e-12` at `a = 0.032`, **`7.6e-8` at `a = 0.001`**. The cause is
+representation, not arithmetic: `N_w(a) ≈ 1 − a^w/w` sits near 1, where a double
+resolves only to `ulp(1) = 2.2e-16`, so once `a^w` nears that, `a` is gone. No
+implementation recovers it.
+
+**Three attempts, three wrong assumptions:**
+1. *"It's catastrophic cancellation in `1 − a^w`."* Real, and fixed —
+   `Negations.yager` now evaluates `(−expm1(w·ln a))^(1/w)`, `ln a` via
+   `ln1p(a − 1)` above 0.5. Removes a ~0.4% error. **Kept**: it removes the
+   error that is ours and leaves the one IEEE 754's. But it moved Δ only
+   5.3196e-8 → 5.2995e-8, i.e. it was not the problem.
+2. *"It's a boundary cliff, so sample the interior."* Added
+   `Sampling.interior()`. **Wrong and reverted** — it is a gradient with no
+   floor, so interior sampling relocates the failure rather than scoping it. It
+   passed at `w = 2.48` and failed at `w = 4.25`, which is luck, not a scope.
+   The API is **removed**: public API added to stop a suite reporting something
+   true is suppression with a nicer name.
+3. *"Some tolerance must work."* None does; the error is unbounded. §8's
+   tolerances absorb rounding noise, not bad conditioning.
+
+**Decided:** Yager stays (§6 asks for it, it is a legitimate negation from the
+literature) and is documented as numerically unverifiable in a De Morgan triple.
+`DeMorganLaws` failing for one is **correct** — De Morgan over a dual triple
+reduces to involutivity, so the suite is reporting the negation, not the law —
+and that failure is asserted as a fact alongside the Drastic and Product
+test-of-the-test. `Negations.sugeno` is the involutive parametric negation to
+reach for: its curve meets the boundary linearly, so nothing collapses into the
+last few ulps, and its triples verify at every edge case.
+
+**The general lesson, worth more than the case.** Across (a), (b) and (c) the
+first instinct was always that a red suite meant a broken suite. Every time, the
+arithmetic was telling the truth and an *assumption* was wrong: §8's exactness
+over-applied to the negation; "subnormals are just small numbers"; "the
+implementation must be fixable"; "there must be a safe interior". `fuzzy-laws`
+caught its own author four times in two runs — which is precisely what §7 built
+it to do, and a reason to trust it that no amount of documentation could buy.
+
+**Corollary for §7's test-of-the-test discipline:** asserting that a suite
+*fails* where it should is not a curiosity confined to `StandardLaws`/Product.
+It is the mechanism that stops each of these findings from being quietly
+re-broken.
 
 ---
 

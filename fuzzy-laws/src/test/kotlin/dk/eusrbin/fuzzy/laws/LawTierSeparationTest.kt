@@ -1,11 +1,15 @@
 package dk.eusrbin.fuzzy.laws
 
 import dk.eusrbin.fuzzy.algebra.Algebra
+import dk.eusrbin.fuzzy.algebra.Negations
 import dk.eusrbin.fuzzy.algebra.TNorms
+import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainAll
+import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import kotlin.math.abs
 
 /**
  * **The test of the test.**
@@ -237,6 +241,84 @@ class LawTierSeparationTest : FunSpec({
         test("all three built-in algebras satisfy De Morgan") {
             for (algebra in Algebra.BUILT_INS) {
                 DeMorganLaws.verify(algebra)
+            }
+        }
+    }
+
+    // ---- A failure that is IEEE 754's, not the mathematics' ------------------
+
+    context("Yager is not involutive in double — representation, not arithmetic") {
+
+        // Documented on Negations.yager and pinned here so the KDoc cannot rot.
+        //
+        // This context exists because the claim "Yager satisfies De Morgan" is
+        // FALSE for w ≠ 1, and was withdrawn rather than scoped. Two earlier
+        // attempts to rescue it — reformulating N, then sampling only the
+        // interior — both failed, because the problem is neither the evaluation
+        // nor the edge cases.
+
+        val w = 2.476662004953192
+        val yager = Negations.yager(w)
+        val algebra = Algebra.deMorgan("Yager(w=$w)", TNorms.PRODUCT, yager)
+
+        test("N maps a whole interval into the last two doubles below 1") {
+            // The mechanism. Everything else follows from it.
+            val n = yager.apply(1.0 - Math.ulp(1.0))
+            n shouldBe (6.896e-7 plusOrMinus 1e-10)
+
+            // ... and N of that lands one ulp shy of 1, holding ~2 bits about n.
+            yager.apply(n) shouldBe 0.9999999999999998
+        }
+
+        test("so involutivity is ~8% out at the boundary") {
+            val x = 6.366172513627981e-7
+            val roundTripped = yager.apply(yager.apply(x))
+            val relativeError = abs(roundTripped - x) / x
+            (relativeError > 0.05) shouldBe true
+        }
+
+        test("and it is a GRADIENT, not a cliff: error ≈ 5.55e-17·a^(1−w)") {
+            // The assumption that cost two rounds: that there is a well-behaved
+            // interior to retreat to. There is not — the error grows without
+            // bound as a → 0 for w > 1, so "away from the boundary" only means
+            // "somewhere the error happens to be smaller".
+            val steep = Negations.yager(4.25)
+            val errors = listOf(0.5, 0.2, 0.032, 0.01, 0.001).map { a ->
+                a to abs(steep.apply(steep.apply(a)) - a)
+            }
+
+            // Monotonically worse as a → 0, over four orders of magnitude.
+            errors.zipWithNext().forEach { (bigger, smaller) ->
+                withClue("error at a=${smaller.first} should exceed a=${bigger.first}") {
+                    (smaller.second > bigger.second) shouldBe true
+                }
+            }
+
+            // Nowhere near any usable tolerance, at a perfectly ordinary degree.
+            withClue("a = 0.001, w = 4.25") {
+                (errors.last().second > 1e-9) shouldBe true
+            }
+        }
+
+        test("DeMorganLaws reports it, and is right to") {
+            // De Morgan over a dual triple reduces to involutivity, so this is
+            // the negation being reported, not the law.
+            DeMorganLaws.check(algebra, Tolerance.GENERAL).holds shouldBe false
+        }
+
+        test("Sugeno has no such problem — it meets the boundary linearly") {
+            // The contrast proving this is Yager's shape, not parametric
+            // negations in general. Sugeno's N approaches the boundary linearly,
+            // so N(a) never collapses into the last few ulps.
+            DeMorganLaws.verify(
+                Algebra.deMorgan("Sugeno(λ=3.0)", TNorms.PRODUCT, Negations.sugeno(3.0)),
+                Tolerance.GENERAL,
+            )
+            val sugeno = Negations.sugeno(3.0)
+            for (a in listOf(0.5, 0.032, 0.001, 1e-6)) {
+                withClue("Sugeno round trip at a=$a") {
+                    sugeno.apply(sugeno.apply(a)) shouldBe (a plusOrMinus 1e-14)
+                }
             }
         }
     }
