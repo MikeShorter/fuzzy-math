@@ -26,11 +26,21 @@ jvm-toolchain = "24"
 jvm-target = "17"
 
 # --- Build ----------------------------------------------------------------
+# CLAUDE.md §14.2 (ratified 2026-07-15): the COMPILER and the PUBLISHED STDLIB
+# are two different decisions and get two different knobs. Same reasoning as
+# §14.1's toolchain/target split — build on the newest thing, hand consumers the
+# oldest thing that costs us nothing.
+#
+# kotlin        = the compiler. Ours; nobody downstream sees it.
+# kotlin-stdlib = what lands in the published POM as a `compile`-scope dep, and
+#                 therefore what Gradle's highest-version rule can drag into a
+#                 consumer's graph. This is a promise. Keep it stable.
+#
 # Kotlin 2.4.20-Beta1 verified present on Maven Central 2026-07-15
-# (org.jetbrains.kotlin.jvm.gradle.plugin marker published, not portal-only).
-# Fallback floor is "2.4.10" (latest stable) — one-line change here.
-# See CLAUDE.md §14.2 for the beta-stdlib-in-POM consequence.
+# (org.jetbrains.kotlin.jvm.gradle.plugin marker published, not portal-only);
+# 2.4.10 is the latest stable.
 kotlin = "2.4.20-Beta1"
+kotlin-stdlib = "2.4.10"
 dokka = "2.2.0"
 vanniktech-publish = "0.37.0"
 
@@ -50,9 +60,15 @@ kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", v
 dokka-gradle-plugin = { module = "org.jetbrains.dokka:dokka-gradle-plugin", version.ref = "dokka" }
 vanniktech-publish-plugin = { module = "com.vanniktech:gradle-maven-publish-plugin", version.ref = "vanniktech-publish" }
 
-# Pinned explicitly because kotlin.stdlib.default.dependency is left ON;
-# this entry exists so the version is visible and overridable in one place.
-kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
+# Declared explicitly BECAUSE kotlin.stdlib.default.dependency is turned OFF in
+# gradle.properties. With it off, the Kotlin Gradle plugin no longer injects a
+# stdlib at the compiler's own version, so this entry is the only thing putting
+# one on the classpath — and it deliberately tracks `kotlin-stdlib` (2.4.10,
+# stable), NOT `kotlin` (the beta compiler). CLAUDE.md §14.2.
+#
+# Note the two `kotlin-stdlib` aliases below and above are not a clash:
+# [versions] and [libraries] are separate namespaces.
+kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin-stdlib" }
 
 kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }

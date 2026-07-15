@@ -7,6 +7,18 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("org.jetbrains.kotlin.jvm")
+
+    // NOT redundant with kotlin("jvm"), which applies plain `java`. The `api`
+    // configuration comes from java-library and nowhere else — without this,
+    // fuzzy-laws' `api(project(":fuzzy-algebra"))` fails outright with
+    // "Could not find method api()", and the kotlin-stdlib pin below has no
+    // configuration to attach to.
+    //
+    // Correct for this project independently of that: these are libraries, and
+    // java-library is what makes the api/implementation split real — it is the
+    // difference between a consumer seeing TNorm in fuzzy-laws' signatures
+    // (they must) and seeing our internals (they must not).
+    `java-library`
 }
 
 // --- Version catalog access inside a precompiled script plugin --------------
@@ -61,7 +73,21 @@ tasks.withType<Test>().configureEach {
 dependencies {
     // String-form configuration names: robust regardless of whether Gradle
     // generates typesafe configuration accessors for this precompiled script.
+
+    // The stdlib, declared by hand because gradle.properties turns off KGP's
+    // automatic injection (CLAUDE.md §14.2). With the injection off, this line
+    // is the ONLY thing putting a stdlib on the classpath — deleting it does not
+    // fall back to a default, it fails to compile.
     //
+    // `api`, matching the scope KGP's own injected dependency uses, so the
+    // published POM keeps the shape every other Kotlin library has: kotlin-stdlib
+    // at `compile` scope. It is a genuine runtime requirement even for Java
+    // consumers — the bytecode references kotlin.jvm.internal.Intrinsics.
+    //
+    // Resolves to 2.4.10 (stable), NOT the 2.4.20-Beta1 compiler. That gap is
+    // the entire point; see gradle/libs.versions.toml.
+    "api"(catalogLibrary("kotlin-stdlib"))
+
     // No junit-bom and no explicit junit-platform-launcher: kotest brings a
     // self-consistent JUnit Platform and pinning our own would fight it across a
     // major version. The reasoning is in gradle/libs.versions.toml, where the

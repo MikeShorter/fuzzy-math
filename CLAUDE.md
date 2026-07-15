@@ -16,7 +16,7 @@ it there and ask before coding around it") they are recorded here rather than
 buried in a build file. **Each is implemented as a single-line knob**, so
 ratifying or reversing any of them is a one-line change and not a refactor.
 
-§14.1 is **ratified**. §14.2–§14.5 still stand open.
+§14.1 and §14.2 are **ratified**. §14.3–§14.5 still stand open.
 
 #### 14.1 JVM target: toolchain 24, bytecode 17 — **RATIFIED 2026-07-15**
 
@@ -51,29 +51,46 @@ floor is easy; lowering one after consumers have adopted you is not.
 
 **Standing rule:** `jvm-target` moves only via a decision in this file.
 
-#### 14.2 Kotlin 2.4.20-Beta1, and the beta stdlib in the published POM
+#### 14.2 Compile on 2.4.20-Beta1, publish stdlib 2.4.10 — **RATIFIED 2026-07-15**
 
-**Instructed:** Kotlin 2.4.20-Beta1, floor 2.4.10. Verified present on Maven
-Central 2026-07-15 (the `org.jetbrains.kotlin.jvm` plugin marker is published,
-not portal-only). `kotlin = "2.4.20-Beta1"` in the catalog; `"2.4.10"` — the
-latest stable — is a one-line change.
+**Decided:** the compiler and the published stdlib are separate decisions with
+separate knobs. `kotlin = "2.4.20-Beta1"` and `kotlin-stdlib = "2.4.10"` in
+`gradle/libs.versions.toml`; `kotlin.stdlib.default.dependency=false` in
+`gradle.properties`; `api(libs.kotlin.stdlib)` declared by hand in
+`fuzzy.kotlin-conventions`.
 
-**The consequence.** `kotlin.stdlib.default.dependency` is left at its default,
-so KGP adds `kotlin-stdlib` **at the compiler's version**. The published POM
-therefore carries `kotlin-stdlib:2.4.20-Beta1`, and Gradle's highest-version
-conflict rule can pull that beta into a consumer's graph even if they pinned
-2.4.10 themselves.
+This is §14.1's split applied to a second axis: **build on the newest thing,
+hand consumers the oldest thing that costs us nothing.** The toolchain/target
+pair and the compiler/stdlib pair are the same shape of decision.
 
-**Options** (the third was recommended and not chosen for you):
-1. Leave as-is — simplest, mildly rude to downstreams. **Current state.**
-2. Kotlin 2.4.10 everywhere — fully stable, loses the beta compiler.
-3. Compile with the beta, publish a stable stdlib: set
-   `kotlin.stdlib.default.dependency=false` in `gradle.properties` and declare
-   `libs.kotlin.stdlib` (already in the catalog) explicitly at 2.4.10. Reads
-   "2.4.10 as absolute bottom" as being about the *published contract*, which
-   is arguably what that phrase meant. Small risk: a beta compiler may emit
-   references to stdlib members absent from 2.4.10, and KGP warns when the
-   stdlib is older than the compiler. Negligible for code this arithmetic.
+**The problem it solves.** Left at its default, KGP injects `kotlin-stdlib` at
+the *compiler's* version. The published POM would then carry
+`kotlin-stdlib:2.4.20-Beta1` at `compile` scope, and Gradle's highest-version
+conflict rule would drag that beta into consumers' graphs **even if they had
+pinned a stable stdlib themselves**. A beta compiler is our business; a beta in
+someone else's dependency graph is not.
+
+Reads "2.4.10 as absolute bottom" as being about the *published contract*.
+
+**Rejected:** (a) leave it — simplest, but exports our beta; (b) 2.4.10
+everywhere — stable but gives up the compiler for no gain, since the compiler
+was never the thing leaking.
+
+**Known consequence, accepted:** KGP warns that the stdlib (2.4.10) is older
+than the compiler (2.4.20-Beta1). That warning is the intended state. The real
+risk it points at — a beta compiler emitting references to stdlib members absent
+from 2.4.10 — is theoretical for code that uses `min`/`max`/`pow`/`abs` and
+`List`, and would fail loudly at our compile time rather than silently in a
+consumer's runtime. Revisit when 2.4.20 goes stable, at which point both knobs
+move to it and the gap closes.
+
+**Fallout worth recording:** turning the injection off forced
+`fuzzy.kotlin-conventions` to apply `java-library`, because the `api`
+configuration comes from that plugin and `kotlin("jvm")` applies only plain
+`java`. That surfaced a latent bug — `fuzzy-laws`' existing
+`api(project(":fuzzy-algebra"))` would have failed on the first build with
+"Could not find method api()". `java-library` is correct here independently: it
+is what makes the api/implementation split real in the published POM.
 
 #### 14.3 Publishing via vanniktech 0.37.0, not plain `maven-publish`
 
