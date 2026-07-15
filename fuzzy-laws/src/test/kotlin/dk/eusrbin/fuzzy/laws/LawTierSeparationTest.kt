@@ -1,7 +1,9 @@
 package dk.eusrbin.fuzzy.laws
 
 import dk.eusrbin.fuzzy.algebra.Algebra
+import dk.eusrbin.fuzzy.algebra.Degrees
 import dk.eusrbin.fuzzy.algebra.Negations
+import dk.eusrbin.fuzzy.algebra.TConorms
 import dk.eusrbin.fuzzy.algebra.TNorms
 import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
@@ -219,8 +221,8 @@ class LawTierSeparationTest : FunSpec({
             val mismatched = Algebra.of(
                 "Mismatched",
                 TNorms.PRODUCT,
-                dk.eusrbin.fuzzy.algebra.TConorms.GODEL,
-                dk.eusrbin.fuzzy.algebra.Negations.STANDARD,
+                TConorms.GODEL,
+                Negations.STANDARD,
             )
             DeMorganLaws.check(mismatched).holds shouldBe false
         }
@@ -231,11 +233,11 @@ class LawTierSeparationTest : FunSpec({
             val mismatched = Algebra.of(
                 "Mismatched",
                 TNorms.PRODUCT,
-                dk.eusrbin.fuzzy.algebra.TConorms.GODEL,
-                dk.eusrbin.fuzzy.algebra.Negations.STANDARD,
+                TConorms.GODEL,
+                Negations.STANDARD,
             )
             val result = mismatched.or(mismatched.and(0.3, 0.7), 0.4)
-            dk.eusrbin.fuzzy.algebra.Degrees.isDegree(result) shouldBe true
+            Degrees.isDegree(result) shouldBe true
         }
 
         test("all three built-in algebras satisfy De Morgan") {
@@ -257,6 +259,11 @@ class LawTierSeparationTest : FunSpec({
         // interior — both failed, because the problem is neither the evaluation
         // nor the edge cases.
 
+        // Any w ≠ 1 exhibits this. At w = 1 Yager degenerates to the standard
+        // negation (`(1 − a¹)^(1/1)` = `1 − a`), which is involutive to within a
+        // rounding — so w = 1 is the one value that cannot show the problem. The
+        // specific value below is an arbitrary non-integer w > 1; §14.6(c)'s
+        // measurements use w = 4.25, where the effect is steeper.
         val w = 2.476662004953192
         val yager = Negations.yager(w)
         val algebra = Algebra.deMorgan("Yager(w=$w)", TNorms.PRODUCT, yager)
@@ -267,6 +274,19 @@ class LawTierSeparationTest : FunSpec({
             n shouldBe (6.896e-7 plusOrMinus 1e-10)
 
             // ... and N of that lands one ulp shy of 1, holding ~2 bits about n.
+            //
+            // Two things about this assertion, both learned the hard way:
+            //
+            // 1. That it lands back on the input (1 − ulp(1) IS 0.9999999999999998)
+            //    is incidental, not the claim. The claim is the COMPRESSION: N's
+            //    entire range near 1 is those last two doubles, so N(n) can retain
+            //    only ~2 bits about n. Involutivity surviving at this one point is
+            //    luck of where the rounding fell.
+            //
+            // 2. The exact bit pattern is deliberate. "Within a tolerance of 1"
+            //    would not demonstrate that only two doubles are REACHABLE, which
+            //    is the whole finding. A tolerance here would delete the claim it
+            //    appears to protect.
             yager.apply(n) shouldBe 0.9999999999999998
         }
 

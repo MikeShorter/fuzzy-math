@@ -10,10 +10,14 @@ import kotlin.math.abs
 /**
  * How close is close enough — **the one place tolerances live**.
  *
- * CLAUDE.md §8: *"Tolerances are calibrated **per algebra**, defined in one
- * place inside `fuzzy-laws`, never scattered through test files."* This class is
- * that place. If you are about to write a literal epsilon in a test, add a
- * calibration here instead and say why.
+ * CLAUDE.md §8: *"Tolerances are calibrated in one place inside `fuzzy-laws`,
+ * never scattered through test files."* This class is that place. If you are
+ * about to write a literal epsilon in a test, add a calibration here instead
+ * and say why.
+ *
+ * §8 originally said tolerances calibrate *per algebra*. They calibrate **per
+ * operation** — see §14.6(a), and the section below on why the difference is
+ * not pedantry.
  *
  * ## Why this exists at all
  *
@@ -169,8 +173,8 @@ public class Tolerance private constructor(
         }
 
         /**
-         * The calibrated tolerance for [tNorm] — the per-algebra dispatch
-         * CLAUDE.md §8 asks for.
+         * The calibrated tolerance for [tNorm] — the monoid-side dispatch of
+         * CLAUDE.md §8, as refined by §14.6(a).
          *
          * Dispatches on identity against the built-in singletons, so a t-norm you
          * wrote yourself lands on [GENERAL], which is the conservative answer.
