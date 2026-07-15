@@ -5,7 +5,9 @@ import dk.eusrbin.fuzzy.algebra.TConorm
 /**
  * **The universal tier, dual side.** The defining laws of a triangular conorm.
  *
- * Source: Bergmann 2008, §11.7; Klement, Mesiar & Pap 2000.
+ * **Source:** Bergmann 2008, §11.7 — read and checked. (Klement, Mesiar & Pap
+ * 2000 is §2's general t-norm reference; it is not on hand, so nothing here
+ * hangs on it — CLAUDE.md §17.5.)
  *
  * ```
  * S(a, b)       = S(b, a)                     commutativity
@@ -35,7 +37,7 @@ import dk.eusrbin.fuzzy.algebra.TConorm
  */
 public object TConormLaws {
 
-    private const val CITATION = "Bergmann 2008, §11.7; Klement, Mesiar & Pap 2000"
+    private const val CITATION = "Bergmann 2008, §11.7"
 
     /**
      * Checks [tConorm] and **throws** [LawViolationException] on any failure.

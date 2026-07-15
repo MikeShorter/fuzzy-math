@@ -14,13 +14,15 @@ package dk.eusrbin.fuzzy.algebra
  * S(a, 0)       = a                           boundary / neutral element
  * ```
  *
- * Source: Bergmann 2008, §11.7; Klement, Mesiar & Pap 2000.
+ * **Source:** Bergmann 2008, §11.7 — read and checked. (Klement, Mesiar & Pap
+ * 2000 is §2's general t-norm reference; it is not on hand, so nothing here
+ * hangs on it — CLAUDE.md §17.5.)
  *
  * The only difference from [TNorm] is the neutral element (`0` rather than `1`).
  * Every t-conorm is the [Negations.STANDARD]-dual of a t-norm and vice versa:
  * `S(a,b) = 1 − T(1−a, 1−b)`. See [TConorms.dualOf].
  *
- * Zadeh 1965 §III's union `max(f_A, f_B)` is the Gödel conorm
+ * Zadeh 1965 §II's union `max(f_A, f_B)` (eq. 3) is the Gödel conorm
  * ([TConorms.MAXIMUM]); his footnote 4's `f_A + f_B − f_A f_B` is the Product
  * conorm ([TConorms.PROBABILISTIC_SUM]) — CLAUDE.md §6 notes he filed these
  * separately "without noticing they were the same shape". His §IV algebraic sum

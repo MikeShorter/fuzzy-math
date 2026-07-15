@@ -1,5 +1,6 @@
 package dk.eusrbin.fuzzy.laws
 
+import dk.eusrbin.fuzzy.set.Domain
 import kotlin.math.abs
 
 /**
@@ -59,6 +60,38 @@ internal class LawChecker(
                     return
                 }
             }
+        }
+        results += LawResult(law, citation, null)
+    }
+
+    /**
+     * Checks [check] at every element of [over] — for laws quantified over a
+     * **domain** rather than over degrees.
+     *
+     * The other `law*` methods walk [Sampling]'s degree pool, which is right for
+     * a t-norm (its laws quantify over `[0,1]`) and wrong for a fuzzy set (whose
+     * laws quantify over `X`). A set law's witness is an `x`, not a degree tuple,
+     * so [check] builds its own [Counterexample] and names the point in the
+     * detail — `Counterexample.inputs` carries the degrees *at* that point, which
+     * is what a reader needs to re-derive the failure by hand.
+     *
+     * Note the sampling asymmetry this inherits: over an [dk.eusrbin.fuzzy.set.Enumerable]
+     * the ∀ is genuine, over a [dk.eusrbin.fuzzy.set.Sampled] it is a search. A
+     * [LawReport] cannot say which — that is [dk.eusrbin.fuzzy.set.Verdict]'s job
+     * (§16.4) — so a suite using this reports what it found and the domain in its
+     * subject line, and the caller reads `Domain.isExhaustive` if they need to
+     * know which kind of answer they have.
+     */
+    fun <X> lawOverDomain(
+        law: String,
+        citation: String,
+        over: Domain<X>,
+        check: (X) -> Counterexample?,
+    ) {
+        for (x in over.elements()) {
+            val counterexample = check(x) ?: continue
+            results += LawResult(law, citation, counterexample)
+            return
         }
         results += LawResult(law, citation, null)
     }

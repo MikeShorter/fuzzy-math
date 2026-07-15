@@ -33,12 +33,12 @@ class KnownValuesTest : FunSpec({
 
     context("Zadeh 1965") {
 
-        test("§III eq. (2), (3): union is Max, intersection is Min") {
+        test("§II eq. (3), (5): union is Max, intersection is Min") {
             Algebra.ZADEH.or(0.3, 0.7) shouldBe 0.7
             Algebra.ZADEH.and(0.3, 0.7) shouldBe 0.3
         }
 
-        test("§II p.340: complement is 1 − f_A") {
+        test("§II eq. (1), p.340: complement is 1 − f_A") {
             Algebra.ZADEH.not(0.3) shouldBe (0.7 plusOrMinus ε)
         }
 

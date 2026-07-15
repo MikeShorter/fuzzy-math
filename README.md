@@ -7,11 +7,12 @@ grew out of it.**
 
 ```kotlin
 implementation("dk.eusrbin:fuzzy-algebra:0.1.0")
+implementation("dk.eusrbin:fuzzy-set:0.1.0")
 testImplementation("dk.eusrbin:fuzzy-laws:0.1.0")
 ```
 
-> **Status: slice 1, pre-release.** `fuzzy-algebra` and `fuzzy-laws` only.
-> Nothing is published to Maven Central yet.
+> **Status: slice 2a, pre-release.** `fuzzy-algebra`, `fuzzy-set` and
+> `fuzzy-laws`. Nothing is published to Maven Central yet.
 
 ---
 
@@ -46,7 +47,7 @@ source in KDoc, and **where a source and our code disagree, the source wins**.
 That is not a bibliography, it is a design constraint. It is also *executable* —
 see `fuzzy-laws` below.
 
-## The two artifacts
+## The three artifacts
 
 ### `fuzzy-algebra` — no dependencies
 
@@ -85,6 +86,35 @@ for one.
 Mostert–Shields, every continuous t-norm is an ordinal sum of Łukasiewicz, Gödel
 and Product. Those three plus `TNorms.ordinalSum` are a basis, not a grab-bag.
 
+### `fuzzy-set` — Zadeh 1965, faithfully
+
+Membership functions, the pointwise algebra (§II–§IV), hedges, and the `Domain`
+capability seam.
+
+```java
+MembershipFn<String> warm = x -> x.equals("warm") ? 0.75 : 0.25;
+Domain<String> terms = Enumerable.of("cold", "warm", "hot");
+
+FuzzySets.union(warm, cool);       // pointwise — needs no domain
+warm.height(terms);                // a Sup — needs one
+```
+
+**The domain is a parameter, not part of a set's type.** A fuzzy set *is* its
+membership function — Zadeh's §II definition says the function characterises the
+set completely, so nothing else is carried. Operations split cleanly: pointwise
+ones (union, complement, hedges) need nothing; anything requiring a `Sup` over X
+takes a `Domain`. You cannot ask for a supremum you cannot compute, because it
+is a required argument.
+
+The surprise is which side containment falls on. `f_A ≤ f_B` is a **∀ over X**,
+so Zadeh's eq. (2) needs a domain — while union and intersection do not.
+
+**A ∀ over a grid is not a proof.** Over a `Sampled` domain, "no counterexample"
+means only that none turned up among the points looked at, so containment returns
+a three-valued `Verdict` — `Proven` / `Refuted` / `NotRefuted` — rather than a
+boolean that would assert a proof nobody performed. A witness *found* on a grid
+refutes absolutely; sampling is lossy in one direction only.
+
 ### `fuzzy-laws` — the correctness criteria, shipped
 
 **This is not an internal test folder. It is a published artifact.**
@@ -115,6 +145,9 @@ Product and Łukasiewicz; min is the only idempotent t-norm. So:
 | `ResiduumLaws` / `BLAlgebraLaws` | left-continuous `T` + residuum | residuation adjunction, divisibility, prelinearity |
 | `MVAlgebraLaws` | Łukasiewicz | MV-algebra axioms |
 | `StandardLaws` | **min/max only** | idempotence, distributivity (eqs. 9, 10), absorption |
+| `MembershipFnLaws` | any membership fn | degrees in `[0,1]`; **every closed-form override agrees with the fold it replaced** |
+| `ZadehSetLaws` | sets over an algebra | Zadeh's own set-level claims — eqs. 7, 8, 9, 10, 15, 19 |
+| `DecompositionLaws` | any membership fn | `A = ⋃ α·Γ_α` round-trips |
 
 **The one thing to take away:** a law you read in Zadeh 1965 is not
 automatically a law of your algebra. Distributivity is the one people carry over
@@ -162,10 +195,18 @@ The Gradle wrapper is committed, so a JDK is the only prerequisite.
 
 ## Roadmap
 
-Slice 1 is `fuzzy-algebra` + `fuzzy-laws`, shipped together because the laws
-artifact validates the algebra artifact from the outside. `fuzzy-set` — the
-`Domain` capability seam, α-cuts, convexity, shadows — is slice 2. The full
-twelve-module graph, and the reasoning behind each cut, is in
+Slice 1 was `fuzzy-algebra` + `fuzzy-laws`, shipped together because the laws
+artifact validates the algebra artifact from the outside. Slice 2a added
+`fuzzy-set`: the `Domain` seam, the pointwise algebra, hedges, α-cuts and
+decomposition — everything in Zadeh 1965 that is domain-generic.
+
+**Slice 2b** is Zadeh §V — convexity, boundedness, shadow, separation. Those need
+a *vector space*, not merely a domain: convexity is
+`f_A[λx₁ + (1−λ)x₂] ≥ Min[f_A(x₁), f_A(x₂)]` (eq. 25), and forming that segment
+needs arithmetic on X itself. Zadeh says so on p.347 — *"we assume for
+concreteness that X is a real Euclidean space Eⁿ"*. So §V is ℝ¹-bound and waits.
+
+The full twelve-module graph, and the reasoning behind each cut, is in
 [CLAUDE.md](CLAUDE.md) §10.
 
 ## License

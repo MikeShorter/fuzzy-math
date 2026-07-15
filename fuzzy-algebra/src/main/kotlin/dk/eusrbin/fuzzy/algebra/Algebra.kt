@@ -91,8 +91,9 @@ public class Algebra private constructor(
          * The **Standard** algebra: `(min, max, 1 − x)`.
          *
          * Aliases, all naming this same object (CLAUDE.md §6):
-         * - **Zadeh** — it is exactly Zadeh 1965 §III: intersection `Min[f_A,f_B]`
-         *   (eq. 3), union `Max[f_A,f_B]` (eq. 2), complement `1 − f_A`.
+         * - **Zadeh** — it is exactly Zadeh 1965 §II: complement `1 − f_A`
+         *   (eq. 1), union `Max[f_A,f_B]` (eq. 3), intersection `Min[f_A,f_B]`
+         *   (eq. 5).
          * - **Gödel** — it is the Gödel system of many-valued logic
          *   (Bergmann 2008, §11.8).
          *

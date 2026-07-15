@@ -30,9 +30,16 @@ dependencyResolutionManagement {
 
 rootProject.name = "fuzzy-math"
 
-// CLAUDE.md §12 — Slice 1 is fuzzy-algebra + fuzzy-laws ONLY.
-// The remaining ten modules of the §10 module graph are deliberately absent:
-// not stubbed, not commented-in. Adding one later is a single `include(…)`
-// here plus a build.gradle.kts applying the same convention plugins.
+// The modules of §10's graph that exist. The rest are deliberately absent —
+// not stubbed, not commented-in — until a slice builds them.
+//
+// Slice 1 (§12) predicted that adding one later would be "a single include(…)
+// here plus a build.gradle.kts applying the same convention plugins". Adding
+// fuzzy-set in slice 2a cost exactly that, so the shape is holding.
 include("fuzzy-algebra")
 include("fuzzy-laws")
+
+// Slice 2a (§15.7): membership functions, the pointwise algebra, hedges, the
+// Domain seam, and domain-generic analysis. Zadeh §V — convexity, boundedness,
+// shadow, separation — is slice 2b and is ℝ¹-bound (§15.5).
+include("fuzzy-set")

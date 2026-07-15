@@ -6,7 +6,9 @@ import dk.eusrbin.fuzzy.algebra.TNorm
  * **The universal tier.** The four defining laws of a triangular norm, plus the
  * annihilator they imply.
  *
- * Source: Bergmann 2008, §11.7; Klement, Mesiar & Pap 2000.
+ * **Source:** Bergmann 2008, §11.7 — read and checked. (Klement, Mesiar & Pap
+ * 2000 is §2's general t-norm reference; it is not on hand, so nothing here
+ * hangs on it — CLAUDE.md §17.5.)
  *
  * ```
  * T(a, b)       = T(b, a)                     commutativity
@@ -48,7 +50,9 @@ import dk.eusrbin.fuzzy.algebra.TNorm
  */
 public object TNormLaws {
 
-    private const val CITATION = "Bergmann 2008, §11.7; Klement, Mesiar & Pap 2000"
+    // Bergmann §11.7 is on hand and checked; KMP is not, so it is not claimed
+    // as a source here (CLAUDE.md §2, §17.5).
+    private const val CITATION = "Bergmann 2008, §11.7"
 
     /**
      * Checks [tNorm] and **throws** [LawViolationException] on any failure.

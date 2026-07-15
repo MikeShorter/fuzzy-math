@@ -4,7 +4,9 @@ package dk.eusrbin.fuzzy.algebra
  * One summand of an ordinal sum: a t-norm [tNorm] squeezed into the subinterval
  * `[lower, upper]` of `[0,1]`.
  *
- * Source: Klement, Mesiar & Pap 2000 (ordinal sums); Bergmann 2008, §11.7.
+ * **Source:** Bergmann 2008, §11.7 — read and checked.
+ * **Attributed:** Mostert–Shields (1957) for the theorem the construction serves;
+ * catalogued in Klement, Mesiar & Pap 2000, which is not on hand (CLAUDE.md §17.5).
  * See [TNorms.ordinalSum] for the construction and for why it matters.
  *
  * The interval is given by its closed endpoints, but it is the **open** interval

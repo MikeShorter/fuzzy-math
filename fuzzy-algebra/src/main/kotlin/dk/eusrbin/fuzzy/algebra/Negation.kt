@@ -12,7 +12,9 @@ package dk.eusrbin.fuzzy.algebra
  * N(N(a)) = a
  * ```
  *
- * Source: Bergmann 2008, §11.7; Klement, Mesiar & Pap 2000.
+ * **Source:** Bergmann 2008, §11.7 — read and checked. (Klement, Mesiar & Pap
+ * 2000 is §2's general t-norm reference; it is not on hand, so nothing here
+ * hangs on it — CLAUDE.md §17.5.)
  *
  * Zadeh 1965 §II (p.340) defines only the standard case — the complement of `A`
  * is `f_A' = 1 − f_A` ([Negations.STANDARD]). The parametric families here are

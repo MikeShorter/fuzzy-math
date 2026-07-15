@@ -24,11 +24,13 @@ private const val RESIDUUM_BISECTION_STEPS = 64
  * T(a, 1)       = a                           boundary / neutral element
  * ```
  *
- * Source: Bergmann 2008, §11.7; Klement, Mesiar & Pap 2000, the reference work.
+ * **Source:** Bergmann 2008, §11.7 — read and checked. (Klement, Mesiar & Pap
+ * 2000 is §2's general t-norm reference; it is not on hand, so nothing here
+ * hangs on it — CLAUDE.md §17.5.)
  * These four laws are the *universal* tier of [dk.eusrbin.fuzzy.laws.TNormLaws]
  * — they hold for every t-norm, and nothing else does (CLAUDE.md §7).
  *
- * Zadeh 1965 §III's intersection `min(f_A, f_B)` is one instance of this
+ * Zadeh 1965 §II's intersection `min(f_A, f_B)` (eq. 5) is one instance of this
  * (the Gödel t-norm, [TNorms.GODEL]); his §IV "algebraic product" `f_A · f_B`
  * is another ([TNorms.PRODUCT]). He filed them separately without noting they
  * were the same shape. CLAUDE.md §6: "Min/max are not a special mechanism —

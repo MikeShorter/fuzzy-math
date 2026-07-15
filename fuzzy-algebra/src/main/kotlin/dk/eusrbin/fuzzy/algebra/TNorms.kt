@@ -32,8 +32,9 @@ public object TNorms {
      * The **Gödel** t-norm, `T(a,b) = min(a,b)`: the greatest t-norm, and the
      * only idempotent one.
      *
-     * Sources: Zadeh 1965, §III eq. (3) — his *intersection*, `f_{A∩B} =
-     * Min[f_A, f_B]`; Bergmann 2008, §11.8.
+     * Sources: Zadeh 1965, §II eq. (5), p.341 — his *intersection*,
+     * `f_C(x) = Min[f_A(x), f_B(x)]`, abbreviated `f_C = f_A ∧ f_B` at eq. (6);
+     * Bergmann 2008, §11.8.
      *
      * CLAUDE.md §6: *"Min/max are not a special mechanism — they are just the
      * Gödel t-norm. There is one parameterised mechanism, and Zadeh's algebra is
@@ -59,19 +60,20 @@ public object TNorms {
         override fun toString(): String = "TNorm.Godel(min)"
     }
 
-    /** Alias for [GODEL], under the name Zadeh 1965 §III uses. Same instance. */
+    /** Alias for [GODEL], under the name Zadeh 1965 §II uses. Same instance. */
     @JvmField
     public val MINIMUM: TNorm = GODEL
 
     /**
      * The **Product** (Goguen) t-norm, `T(a,b) = a·b`. Strict and continuous.
      *
-     * Sources: Zadeh 1965, §IV — his *algebraic product* `f_{AB} = f_A f_B`;
+     * Sources: Zadeh 1965, §IV eq. (14), p.344 — his *algebraic product*
+     * `f_{AB} = f_A f_B`;
      * Bergmann 2008, §11.9.
      *
      * CLAUDE.md §6 notes what Zadeh did not: his "algebraic product" *is* the
      * Product t-norm, and footnote 4's dual `f_A + f_B − f_A f_B` *is* its
-     * conorm ([TConorms.PROBABILISTIC_SUM]). §III and §IV of the 1965 paper are
+     * conorm ([TConorms.PROBABILISTIC_SUM]). §II and §IV of the 1965 paper are
      * one mechanism at two parameter values.
      *
      * Residuum (Goguen implication, Bergmann 2008 §11.9):
@@ -125,9 +127,15 @@ public object TNorms {
      *        = 0     otherwise
      * ```
      *
-     * Source: Klement, Mesiar & Pap 2000. Provided "for convenience"
-     * (CLAUDE.md §6) — it is not in the continuous basis and cannot be built
-     * from it, being neither continuous nor left-continuous.
+     * **Attributed:** classical; the least t-norm. Catalogued in Klement,
+     * Mesiar & Pap 2000, which is not on hand — see CLAUDE.md §2 on the
+     * difference between `Source:` and `Attributed:`, and §17.5 on why this is
+     * not a `Source:`. The *mathematics* is not in doubt: that this is the least
+     * t-norm is asserted by `fuzzy-laws`, independently of who is owed credit.
+     *
+     * Provided "for convenience" (CLAUDE.md §6) — it is not in the continuous
+     * basis and cannot be built from it, being neither continuous nor
+     * left-continuous.
      *
      * ## It has no residuum, and that is the point
      *
@@ -163,7 +171,8 @@ public object TNorms {
     /**
      * The **nilpotent minimum**, `T(a,b) = min(a,b) if a + b > 1, else 0`.
      *
-     * Source: Fodor (1995); catalogued in Klement, Mesiar & Pap 2000.
+     * **Attributed:** Fodor (1995). Not on hand (CLAUDE.md §17.5); the
+     * mathematics is asserted by `fuzzy-laws`, the attribution is not.
      * Provided for convenience (CLAUDE.md §6).
      *
      * Left-continuous but **not continuous**, which makes it a useful specimen:
@@ -203,7 +212,8 @@ public object TNorms {
      *          = a·b / (γ + (1 − γ)(a + b − a·b))    otherwise
      * ```
      *
-     * Source: Hamacher (1978); catalogued in Klement, Mesiar & Pap 2000.
+     * **Attributed:** Hamacher (1978). Not on hand (CLAUDE.md §17.5); the
+     * mathematics is asserted by `fuzzy-laws`, the attribution is not.
      * Provided for convenience (CLAUDE.md §6).
      *
      * Landmarks: `γ = 0` is the Hamacher product, `γ = 1` is [PRODUCT] exactly,
@@ -240,7 +250,9 @@ public object TNorms {
      *              otherwise
      * ```
      *
-     * Source: Klement, Mesiar & Pap 2000 (ordinal sums); Bergmann 2008, §11.7.
+     * **Attributed:** Mostert–Shields (1957) for the theorem; the construction
+     * is catalogued in Klement, Mesiar & Pap 2000, which is not on hand
+     * (CLAUDE.md §17.5). **Source:** Bergmann 2008, §11.7 — verified.
      * CLAUDE.md §6 — first-class, not a footnote.
      *
      * Each summand's t-norm is rescaled into its own subinterval; everywhere

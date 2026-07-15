@@ -17,7 +17,8 @@ public class Counterexample(
     public val inputs: DoubleArray,
     public val detail: String,
 ) {
-    override fun toString(): String = "at (${inputs.joinToString(", ")}): $detail"
+    override fun toString(): String =
+        if (inputs.isEmpty()) detail else "at (${inputs.joinToString(", ")}): $detail"
 }
 
 /**

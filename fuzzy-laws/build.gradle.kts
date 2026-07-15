@@ -13,6 +13,16 @@ dependencies {
     // appear in fuzzy-laws' public signatures (TNormLaws.verify(TNorm)), so
     // consumers must see them.
     api(project(":fuzzy-algebra"))
+
+    // CLAUDE.md §16.6 — a new edge, and a change to §10's graph. §15.7 requires
+    // that fuzzy-laws gain suites for slice 2a's own laws in the same slice, and
+    // MembershipFn/Domain appear in their signatures. Still acyclic: fuzzy-set
+    // depends on fuzzy-algebra and nothing else.
+    //
+    // The alternative — set laws in fuzzy-set's own test source set — was
+    // rejected: it would make them internal tests rather than a published
+    // artifact, which is the one distinction §7 exists to draw.
+    api(project(":fuzzy-set"))
 }
 
 // CLAUDE.md §7 — this is a CONSUMABLE artifact, not an internal test folder.

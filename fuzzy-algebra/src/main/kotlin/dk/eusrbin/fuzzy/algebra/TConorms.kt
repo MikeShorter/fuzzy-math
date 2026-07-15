@@ -6,7 +6,7 @@ import kotlin.math.min
 /**
  * The named t-conorms — the [Negations.STANDARD]-duals of [TNorms].
  *
- * Sources: Zadeh 1965 §III (union) and §IV + footnote 4 (algebraic sum);
+ * Sources: Zadeh 1965 §II (union, eq. 3) and §IV + footnote 4 (algebraic sum);
  * Bergmann 2008 §11.7; Klement, Mesiar & Pap 2000.
  *
  * Each entry here is the dual of the same-named t-norm under `N(x) = 1 − x`:
@@ -32,7 +32,8 @@ public object TConorms {
      * The **Gödel** conorm, `S(a,b) = max(a,b)`: the least t-conorm, dual to
      * [TNorms.GODEL].
      *
-     * Source: Zadeh 1965, §III eq. (2) — his *union*, `f_{A∪B} = Max[f_A, f_B]`.
+     * Source: Zadeh 1965, §II eq. (3), p.340 — his *union*,
+     * `f_C(x) = Max[f_A(x), f_B(x)]`. Abbreviated `f_C = f_A ∨ f_B` at eq. (4).
      *
      * The only idempotent t-conorm, and half of the only pair for which
      * distributivity and absorption hold (CLAUDE.md §7,
@@ -41,7 +42,7 @@ public object TConorms {
     @JvmField
     public val GODEL: TConorm = TConorm { a, b -> max(a, b) }.named("TConorm.Godel(max)")
 
-    /** Alias for [GODEL], under the name Zadeh 1965 §III uses. Same instance. */
+    /** Alias for [GODEL], under the name Zadeh 1965 §II uses. Same instance. */
     @JvmField
     public val MAXIMUM: TConorm = GODEL
 
@@ -89,7 +90,8 @@ public object TConorms {
      *        = 1     otherwise
      * ```
      *
-     * Source: Klement, Mesiar & Pap 2000.
+     * **Attributed:** classical; the greatest t-conorm. Not on hand — see
+     * CLAUDE.md §2 and §17.5.
      */
     @JvmField
     public val DRASTIC: TConorm = object : TConorm {
@@ -106,7 +108,7 @@ public object TConorms {
      * The **nilpotent maximum**, `S(a,b) = max(a,b) if a + b < 1, else 1`: dual
      * to [TNorms.NILPOTENT_MINIMUM].
      *
-     * Source: Fodor (1995); catalogued in Klement, Mesiar & Pap 2000.
+     * **Attributed:** Fodor (1995). Not on hand — CLAUDE.md §17.5.
      */
     @JvmField
     public val NILPOTENT_MAXIMUM: TConorm =
@@ -124,7 +126,7 @@ public object TConorms {
      * S_γ(a,b) = (a + b − a·b − (1 − γ)·a·b) / (1 − (1 − γ)·a·b)
      * ```
      *
-     * Source: Hamacher (1978); catalogued in Klement, Mesiar & Pap 2000.
+     * **Attributed:** Hamacher (1978). Not on hand — CLAUDE.md §17.5.
      *
      * `γ = 1` is [PROBABILISTIC_SUM] exactly; `γ = 2` is the Einstein sum.
      *

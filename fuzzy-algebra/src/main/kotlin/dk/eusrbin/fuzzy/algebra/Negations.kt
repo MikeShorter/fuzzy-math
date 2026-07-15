@@ -8,8 +8,10 @@ import kotlin.math.pow
 /**
  * The named fuzzy negations.
  *
- * Sources: Zadeh 1965, §II (p.340) for [STANDARD]; Klement, Mesiar & Pap 2000
- * and Bergmann 2008 §11.7 for the parametric families. CLAUDE.md §6:
+ * **Source:** Zadeh 1965, §II eq. (1), p.340 for [STANDARD]; Bergmann 2008 §11.7
+ * for the notion of a negation — both read and checked.
+ * **Attributed:** Sugeno (1977) and Yager (1980) for the parametric families;
+ * neither is on hand (CLAUDE.md §17.5). CLAUDE.md §6:
  * "Sugeno and Yager negation families likewise" (i.e. provided for convenience,
  * alongside the named t-norms).
  *
@@ -48,7 +50,7 @@ public object Negations {
      * N_λ(a) = (1 − a) / (1 + λ·a)
      * ```
      *
-     * Source: Sugeno (1977); catalogued in Klement, Mesiar & Pap 2000.
+     * **Attributed:** Sugeno (1977). Not on hand — CLAUDE.md §17.5.
      *
      * Strong for every admissible `λ`. `λ = 0` is [STANDARD] exactly (and the
      * singleton is returned for it). Increasing `λ` bends the curve below the
@@ -77,7 +79,7 @@ public object Negations {
      * N_w(a) = (1 − a^w)^(1/w)
      * ```
      *
-     * Source: Yager (1980); catalogued in Klement, Mesiar & Pap 2000.
+     * **Attributed:** Yager (1980). Not on hand — CLAUDE.md §17.5.
      *
      * Strong for every admissible `w`. `w = 1` is [STANDARD] exactly (and the
      * singleton is returned for it). As `w → ∞` the curve approaches the
