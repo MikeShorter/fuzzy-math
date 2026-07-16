@@ -6,6 +6,474 @@ file is wrong and should be fixed deliberately, not silently.
 
 ---
 
+## Updated: 2026-07-16 — fuzzy-relation design
+
+### 21. Fuzzy relations — **ALL RATIFIED 2026-07-16**
+
+This slice finishes Zadeh 1965: the fuzzy relation (p.345), composition (p.346)
+and eqs. (22)/(23) were the last unshipped equations in the paper. Designed
+against the scan first, per §17.1's discipline — and the scan corrected the
+brief three times before any code existed. The first draft of two decisions
+below was wrong, and both corrections came from the record itself (§16.4,
+§20.5), which is the record doing its job.
+
+#### 21.1 pp.344–346 read off the scan — three corrections to folklore
+
+**A fuzzy relation is homogeneous.** P.345, prose, no equation number: *"a
+fuzzy relation **in X** is a fuzzy set in the product space **X × X**"* — with
+the `x ≫ y` example *"regarded as a fuzzy set A in R²"* (`f_A(10, 5) = 0`,
+`f_A(100, 10) = 0.7`, `f_A(100, 1) = 1`), and p.346's n-ary case in
+`X × X × ⋯ × X`. **The "relations on X×Y" phrasing in §10 and in `Product`'s
+KDoc is later convention, not the paper.** The heterogeneous signature ships —
+the formula never uses `X = Y`, and the types catch argument-order mistakes for
+free (§21.4) — but it is **derived**; `Source:` is the homogeneous statement.
+
+**Composition** (p.346, prose, **no equation number**, matching §17.1's index):
+*"the composition of two fuzzy relations A and B is denoted by B ∘ A and is
+defined as a fuzzy relation in X whose membership function is related to those
+of A and B by `f_{B∘A}(x, y) = Sup_v Min [f_A(x, v), f_B(v, y)]`"* —
+associativity stated in prose, unnumbered, no proof shown. The notation names
+the result right-to-left while `A` takes the first leg: the misreading the
+brief predicted, and the reason for §21.4's argument order.
+
+**Eq. (22) is pointwise, and the brief mis-filed it.** *"The inverse mapping
+T⁻¹ induces a fuzzy set A in X whose membership function is defined by
+`f_A(x) = f_B(y), y ∈ Y` (22), for all x in X which are mapped by T into y"* —
+i.e. `f_A(x) = f_B(T(x))`: the **preimage**, a trivial total combinator. No
+Sup, no preimage-set machinery, no domain, no soundness question. Only (23)
+has the constrained-Sup problem the brief filed them both under.
+
+**Eq. (23) says Max, not Sup** — `f_B(y) = Max_{x∈T⁻¹(y)} f_A(x)` — **and the
+paper's Max/Sup usage is deliberate.** Zadeh writes `Sup` wherever attainment
+is not in hand: `M = Sup_x f_A(x)` (p.348, and twice on p.349), composition's
+`Sup_v` (p.346), the shadow's `Sup_{x₁}` (p.350), separation's
+`M = Sup_x Min[…]` (p.352). He writes `Max` exactly twice, both where
+attainment is established: p.349's uniqueness argument — *"if A is strongly
+convex and x₀ **is attained** … which contradicts `M = Max_x f_A(x)`"* —
+switching from the `Sup_x` written two paragraphs earlier *in the same
+argument*, precisely at the sentence where attainment becomes a hypothesis;
+and (23), whose framing is finite throughout (*"two or more distinct points"*,
+*"the larger of the two grades"*). **Suggestive, not decisive** — for constant
+`T`, `T⁻¹(y)` is all of X and Max would need an attainment he does not argue —
+but it means §21.5's exhaustiveness guard agrees with the paper's own notation
+rather than merely with our seam: his (23) selects from a set he treats as
+attained, which is what an exhaustive domain delivers and a grid does not.
+
+#### 21.2 No `FuzzyRelation` type — a relation *is* a `MembershipFn<Pair<X, Y>>`
+
+The brief's null hypothesis, confirmed by its own test. Zadeh is unambiguous
+(p.345): a fuzzy relation **is** a fuzzy set in a product space, nothing more —
+so `MembershipFn<Pair<X, Y>>` already is one, and §15.1 says not to put in a
+type what a parameter carries.
+
+The test that decides it: **would anything override?** Parametric relations
+with analytic answers exist in principle — `e^{−|x−y|}` is product-transitive
+by the triangle inequality; a crisp order's indicator is min-transitive — but
+**this module ships no parametric relation type.** Nothing like
+`TriangularNumber` is waiting with a closed form. A `fun interface
+FuzzyRelation` would be an abstraction bought on spec, and §15.2's lesson is
+that the concept you delete is the one you were right about.
+
+The module is therefore **operations**: `FuzzyRelations`, `@JvmStatic`, plus
+the queries of §21.7 — whose placement forced §21.3.
+
+**The knob that reverses it, recorded in advance:** if a parametric relation
+ever arrives (Zadeh 1971's fuzzy orderings, should the source arrive),
+introduce `FuzzyRelation<X> : MembershipFn<Pair<X, X>>` **then**, put the
+queries on *it* as members whose default bodies call the statics' generic
+search, and the `FuzzyNumber` precedent applies unchanged. Additive; nothing
+shipped blocks it. What is **forbidden** is `instanceof` dispatch inside the
+statics — that is a virtual table built by hand, and §15.3 exists to say the
+language already has one.
+
+#### 21.3 §16.5 amended: when a query is a member — and the first draft was wrong
+
+§16.5 puts queries on `MembershipFn` as overridable members. Reflexivity,
+symmetry and transitivity are queries, and cannot be members: they constrain
+`X`'s *shape* (`X = Pair<Y, Y>`, the same `Y` on both sides — all three need
+homogeneity: `f(x,x)`; `f(x,y)` against `f(y,x)`), and Kotlin has no
+conditional members. So §16.5 needs an amendment, stated as a rule.
+
+**An earlier draft proposed the wrong rule** — *"queries parametric in X are
+members; queries that constrain X's shape are statics"* — **and shipped code
+refutes it.** `findNonConvexity` constrains X's shape (`X = Double`; §15.5 put
+it there), is a member of `DoubleMembershipFn`, is overridden by
+`TriangularNumber`, and that override is where §20.5's `Proven` dividend came
+from. The rule as drafted would have made it a static and deleted `Proven`.
+
+The shape constraint was never the issue — it just means a member needs a
+**subtype** to live on, and `DoubleMembershipFn` is one. The real question is
+whether such a subtype is *justified*: `DoubleMembershipFn` earns itself on
+§16.1's primitive path, and the convexity queries ride along; a
+`FuzzyRelation` subtype would exist *only* to host queries nothing overrides.
+
+**Decided — the amendment to §16.5:**
+
+> §16.5's queries/combinators line coincided with overridable/not-overridable.
+> **The coincidence is not identity. A query is a member when there is a
+> subtype that both earns its keep independently and has a closed form to
+> override with. Otherwise the virtual slot is decoration.**
+
+That is §7's ethic (do not ship an extension point without its criteria) and
+§15.2's (delete the concept) arriving at the same place. It collides with
+nothing shipped: every §16.5 member either lives on `MembershipFn` itself or
+on a subtype (`DoubleMembershipFn`, `FuzzyNumber`) that §16.1/§20.2 justified
+independently, with real overrides (§20.1, §20.5, §20.8). §21.2's reversing
+knob is unchanged.
+
+#### 21.4 `compose` — sup-T by derivation, direct fold, and an `EXACT` law for any T
+
+**Sup-min composition derives from shipped machinery.** It is the shadow of the
+intersection of two cylindrical extensions — `shadow` (§19.2), `intersection`
+(§II), and `f(x,y) = f_A(x)` — so §19.2's claim that `Product` "earns itself
+twice" comes true, and the module is smaller than §10 implies.
+
+**That derivation settles the sup-T question, and more cheaply than §17.3
+had to.** The brief asked whether substituting `T` for `Min` in someone else's
+formula differs from instantiating an owned mechanism. We do not substitute:
+the `Min` in `Sup_v Min[…]` *is* the intersection of the cylindrical
+extensions, `intersection` is **already parameterised by algebra** under §6's
+ratified rule, and sup-T composition is the same composite with that existing
+parameter left visible. **`Source:`** p.346 for the default (min);
+the parameterisation inherits §6; **`Attributed:`** the name "sup-T
+composition". The `Sup` itself is **not** parameterised — no source on hand
+says anything about inf-S or other outer folds, and nothing asks for them.
+
+**Ship the direct fold; assert the derivation.** The derived form allocates an
+extra `Pair` per grid point; the shipped body is
+`f(x, y) = Sup_v T(f_A(x, v), f_B(v, y))` directly. The identity is asserted by
+`fuzzy-laws` instead of paid for at runtime — `boundedDifference`'s precedent
+verbatim (§17.3).
+
+**The agreement law is `EXACT`, for any T, and deserves its reason rather than
+an assertion.** Both forms compute the same multiset of degrees
+`{T(f_A(x,v), f_B(v,y)) | v}` — `T` touches the *degrees*, never the
+*accumulator*. The accumulator's reducer is `max` regardless of T, and §8's
+ratified point is that max is exactly associative (and commutative), so
+order-independence is free and `EXACT` is sound whatever T does. That is
+§14.6(a)'s "tolerance calibrates per operation, not per algebra" paying out:
+the operation here is *selection*, even when its inputs were arithmetic.
+
+**Argument order: path order, and the types enforce it.**
+
+    compose(first: MembershipFn<Pair<X, V>>,
+            second: MembershipFn<Pair<V, Y>>,
+            over: Domain<V>,
+            algebra: Algebra = STANDARD): MembershipFn<Pair<X, Y>>
+
+Arguments read left-to-right along the path x→v→y. This is Zadeh's `B ∘ A`
+with `first` = his A, `second` = his B; his notation names the result
+right-to-left like function composition, and the KDoc says so, citing p.346.
+In the heterogeneous case **passing them in the wrong order is a compile
+error** — a second dividend of the derived generalisation, and the reason not
+to fear the notation trap.
+
+**Laziness is real and documented, not discovered.** The result re-folds
+`Domain<V>` on every evaluation; composing k relations multiplies the cost.
+Goes in the KDoc — `shadow` already documents the identical caveat.
+
+**Associativity ships as a law** (`Source:` p.346, stated unnumbered): sound
+over `Enumerable` for *any* monotone T — over a finite fold,
+`T(a, max(b, c)) = max(T(a,b), T(a,c))` needs only monotonicity — with
+tolerance `forTNorm` (T is applied twice in different orders; §8), collapsing
+to `EXACT` for `STANDARD`, where T is min and everything is selection.
+
+#### 21.5 Eq. (23) is unsound over a non-exhaustive domain — and the first cure proposed was the wrong one
+
+**The brief's suspicion is confirmed, and it is worse than the brief says.**
+`f_B(y) = Max_{x∈T⁻¹(y)} f_A(x)` is a Sup constrained to a *selected* subset,
+and over a `Sampled` X both halves fail:
+
+- **The selection is empty.** Membership in `T⁻¹(y)` is the comparison
+  `T(x) == y` — an exact comparison meeting a *computed* value, §20.2(iii)'s
+  shape exactly. A grid almost surely contains no point of `T⁻¹(y)`, the fold
+  runs over nothing, and its `initial` — `0.0` — comes back as *the* image.
+  §16.3's lie, arriving where construction cannot reject it.
+- **Refinement never fixes it.** `T⁻¹(y)` is typically measure-zero, so a
+  finer grid still misses it — forever. This is *not* `height`'s "lower bound
+  that converges": **it converges to nothing.**
+
+Over an **exhaustive** domain neither problem exists: the preimage within the
+enumerated universe is exact selection, the fold is Zadeh's own finite Max
+verbatim, and an empty preimage honestly means "no x maps to y" — a fact, not
+a fold artifact — for which `0.0` is the right image.
+
+**An earlier draft restricted the signature to `Enumerable<X>` — and §16.4 had
+already rejected that by name.** Exhaustiveness is *computed, not declared*:
+`Product.isExhaustive` is a runtime conjunction, and the case a static type
+cannot express is `Product(Enumerable, Enumerable)` — which §16.4 calls the
+*motivating case* for `Product`, which §15.4 justified by *this module*, and
+which is exactly the domain a relation on X×X analyses over. The
+`Enumerable`-only signature would have had the paper-finishing operation
+refuse the module's own domain. (§16.4's boolean overload is no counter-model:
+it is sugar *alongside* a general `Verdict` method, honest because the general
+mechanism exists. Here the restricted signature would have *been* the API.
+And reaching past §16.4 back to §3's compile-error ambition was reaching past
+the section that settled how exhaustiveness is actually known.)
+
+**Decided: `imageUnder(a, mapping, over: Domain<X>)` with
+`require(over.isExhaustive)` — it throws.** §16.3's cure, taken with its
+precedent: the diagnosis was §16.3's, so the fix is too. This does not breach
+§4's "operations do not validate": §4 governs *values* (a γ, a λ) and protects
+the hot path from per-call folds — this is a one-time O(1) field read at
+construction of the lazy result, and unlike `separationDegree`'s convexity
+precondition (§19.3, a fold the caller may already have done), **the caller
+cannot know better than the domain does** — `isExhaustive` *is* the domain
+answering.
+
+No `Enumerable<X>` sugar overload: §16.4's sugar pays for itself by changing
+the *return type* to the boolean that is honest there. Here the return type
+would be `MembershipFn<Y>` either way — a second spelling of the same call,
+not sugar. If a caller wants a compile-time guarantee they pass an
+`Enumerable`; the signature does not need to say it twice.
+
+**The pattern-watch verdict (the brief asked for an honest null):** the
+*detector* fired a fifth time — a fold whose `initial` comes back as the
+answer is a return value that cannot carry the truth. But the *resolution* is
+not §18.3's "name both": the grid-restricted image is not a second question
+anyone wants (it is almost surely the zero function). One question, one
+carrier that cannot answer it → guard the carrier. Fifth arrival of the
+detector; **null result on the name-both resolution.** And it is not §20.8
+wearing a hat: the universe is supplied and read correctly; the defect is that
+the *selection within it* is empty for reasons the caller cannot see.
+
+#### 21.6 CRI — §10 vs §11 adjudicated: §10's *word* was wrong, not its substance
+
+§14.5's model, applied. §10 lists "CRI" in this module; §11 makes fuzzy
+control a non-goal; CRI is what Mamdani inference is built from. The
+inconsistency is real and the resolution is that **§10 named a substrate
+operation by its control-layer name.**
+
+What sits under "CRI" is the **relational image**:
+
+    f_B(y) = Sup_x T(f_A(x), f_R(x, y))
+
+which is `shadow(intersection(cylindricalExtension(a), r), over)` — fully
+derived from read sources, like §21.4 — and which **generalises eq. (23)**:
+when R is the crisp graph of a function T, it reduces to (23) exactly.
+
+**Decided:** ship it as `imageUnderRelation` (with `cylindricalExtension`,
+whose mathematics is the trivial `f(x,y) = f_A(x)` and whose *name* is
+attributed — 1975 vocabulary, not in the paper). The KDoc notes that the
+control literature builds the compositional rule of inference from this
+composition (**`Attributed:`** Zadeh 1973, **not on hand**) and the name CRI
+is not carried into the API. That is §11a's own move: the seam ships, the
+control vocabulary does not.
+
+**The bypass, said out loud rather than found by a reader:**
+`imageUnderRelation` with a crisp graph *is* eq. (23), so the silent `0.0` is
+one call away from the operation that refuses it, and the line had better be
+defensible. It is, and the KDoc draws it: `imageUnder` *selects* — over a
+grid its answer degenerates for **every** non-constant mapping, which is why
+it is guarded — while `imageUnderRelation` *folds degrees* with no selection
+anywhere: over a grid it is an honest converging lower bound (`height`'s
+standing caveat, §18.2) for any continuous R, and degenerates only when R is
+indicator-like, concentrated on a measure-zero set — at which point the caller
+has hand-encoded a selection as a relation, and the KDoc says that doing so
+reintroduces exactly the failure `imageUnder`'s guard exists to stop.
+
+#### 21.7 The queries: three `Verdict` statics; "similarity" dropped; a question deferred
+
+`findNonReflexivity`, `findNonSymmetry`, `findNonTransitivity` — statics on
+`FuzzyRelations` per §21.3, each returning a `Verdict` per §16.4, each with the
+formula stated in its own KDoc:
+
+| query | checks | witness |
+|---|---|---|
+| `findNonReflexivity` | `f(x, x) = 1` ∀x | the `x` — one call re-derives it |
+| `findNonSymmetry` | `f(x, y) = f(y, x)` ∀x,y | the `(x, y)` — two calls re-derive it |
+| `findNonTransitivity` | `T(f(x,v), f(v,y)) ≤ f(x,y)` ∀x,v,y | a witness class: `(x, via, y)` **plus the two degrees** — the composed degree is *arithmetic* for a non-min T, so it is carried rather than recomputed, `ConvexityWitness`'s reason (§19.1, §19.7) |
+| "similarity" | — | **dropped, below** |
+
+**Authority:** the formulas are stated in our own KDoc and are unambiguous,
+checkable properties; the **names** are `Attributed:` — Zadeh 1971 is **not on
+hand**, and variants exist in the literature (ε-reflexivity, weak
+reflexivity). The `dilation` precedent (§17.4): naming a function is not a
+claim about mathematics, and each of these is a correct, self-describing
+operation whatever 1971 turns out to call it.
+
+**The comparisons are IEEE comparisons, and the KDoc says so** in
+`checkEquality`'s stance (§18.2): for a non-min T the composed degree is
+computed, so a `Refuted` attests the floating-point inequality — the only one
+the machine can attest. The witness carries both degrees so the law suite can
+reproduce it exactly (§19.7(3)'s self-consistency), rather than re-deriving
+through arithmetic that might round differently.
+
+`findNonTransitivity` searches triples **directly** rather than via
+`compose`-then-`checkContainment`: same O(n³), but the witness is the triple a
+reader re-derives by hand, and — §20.9's rule, applied in advance — a law
+defined through `compose`'s default body would inherit `compose`'s guards. The
+direct search's law is witness self-consistency, owed to nobody.
+
+**"Similarity relation" is dropped, and the reason is §19.6's, not
+"wrongness".** An earlier draft argued a wrong bundle has no residual value —
+overreach: reflexive ∧ symmetric ∧ T-transitive is a well-defined predicate
+whatever it is called, and by §17.5 misattribution is the *smaller* failure.
+The argument that holds is thinner and sharper: **every conjunct is already
+shipped and already checkable, so the bundle's only content is the claim that
+this conjunction is what Zadeh 1971 means — which is precisely the
+unverifiable part.** `power(0.5)` earns its place independently and the name
+rides along; a `checkSimilarity` would be an attribution wearing a function's
+clothes — `alphaCutTouchesWindow`'s objection (§19.6) with the nouns changed.
+When Zadeh 1971 arrives, shipping it is one function and zero unknowns.
+
+**Noticed, deliberately not answered here: does `Verdict` want a
+conjunction?** The three queries return `Verdict<Double>`-, `Verdict<Pair>`-
+and `Verdict<Witness>`-shaped answers, and three witness types do not conjoin
+— a caller combining them writes a `when`, not an `&&`, and `Verdict<W>`
+cannot unify them without a sum type. Nothing in this slice needs it; a
+"similarity" bundle would have, which is one more reason it was the wrong
+thing to ship first. Recorded now rather than met at module nine.
+
+#### 21.8 Module wiring, laws, and the audit
+
+`fuzzy-relation → fuzzy-set` (§10). `fuzzy-laws → fuzzy-relation` — the edge
+§10's note already anticipated; still acyclic, still test-scope-consumable.
+
+`RelationLaws` ships what is sound and nothing else (§19.7's standard):
+
+1. **Derivation agreement** — `compose` equals its shadow/intersection/
+   cylindrical-extension derivation, `EXACT` for any T (§21.4's reasoning).
+   Same for `imageUnderRelation`.
+2. **Associativity** over `Enumerable` factors — tolerance `forTNorm`,
+   `EXACT` for `STANDARD`.
+3. **Witness self-consistency** — a returned transitivity witness must
+   reproduce: re-evaluating both degrees matches what it carries, and the
+   inequality holds. §19.7(3)'s shape.
+4. **Eq. (23) agreement** — `imageUnder(a, T, over)` equals
+   `imageUnderRelation(a, graph(T), over)` over an exhaustive domain, which
+   pins the §21.6 bypass line as an executable fact.
+
+**Test-of-the-test (§7):** a crisp finite order (`≤` as an indicator over an
+`Enumerable`) is min-transitive → `Proven` — reached through
+`Product(Enumerable, Enumerable)`, finally exercising §16.4's motivating case,
+which nothing had; a deliberately intransitive fixture → `Refuted` with a
+reproducing witness; `imageUnder` over a `Sampled` domain → **throws**,
+asserted as a fact.
+
+**The audit.** With this module built, §11a's claim — *"faithful Zadeh 1965 and
+nothing else"* — is checkable for the first time, so here is the check: every
+numbered equation (1)–(32), every unnumbered definition and theorem, each
+marked with what happened to it and where. Statuses: **shipped** (code),
+**law** (a published `fuzzy-laws` suite), **pinned** (`fuzzy-laws`' own tests,
+where a law would be unsound — §19.7), **dropped**/**out** (with the section
+that decided it). Everything cites code that exists today; nothing below is
+from memory.
+
+**§II — Definitions (pp.339–341)**
+
+| | item | status | where |
+|---|---|---|---|
+| — | `f_A(x)`, grade of membership, p.339 | shipped | `MembershipFn.apply` / `DoubleMembershipFn.applyAsDouble` |
+| — | *empty* (prose, p.340) | shipped | `MembershipFn.checkEmptiness` → `Verdict`; `FuzzySets.constant(0.0)` is the set itself |
+| — | *equal* (prose, p.340) | shipped | `MembershipFn.checkEquality` → `Verdict` |
+| (1) | complement `1 − f_A` | shipped | `FuzzySets.complement`, default `Negations.STANDARD` |
+| (2) | containment `f_A ≤ f_B` | shipped | `MembershipFn.checkContainment` → `Verdict` (§16.4) |
+| (3) | union `Max` | shipped | `FuzzySets.union`, default `Algebra.STANDARD` (§6) |
+| (4) | union, abbreviated `∨` | notation | same operation as (3) |
+| (5) | intersection `Min` | shipped | `FuzzySets.intersection`, default `Algebra.STANDARD` |
+| (6) | intersection, abbreviated `∧` | notation | same operation as (5) |
+
+**§III — Properties (pp.342–343)**
+
+| | item | status | where |
+|---|---|---|---|
+| (7)/(8) | De Morgan | law | `ZadehSetLaws` (set level); `DeMorganLaws` (degree level) |
+| (9)/(10) | distributivity | law | `ZadehSetLaws`; **fails for `PRODUCT` by design**, asserted (§7) |
+| (11)/(12) | the membership-function identities of (9)/(10) | law | the pointwise form is literally what `ZadehSetLaws` evaluates at each `x` |
+| (13) | the sieve example, Fig. 3 | example | nothing to ship — its content (composing `∨`/`∧` expressions) is the combinators |
+| — | lattice remark, p.343 | law | `StandardLaws` — the tier that is min/max-only (§7) |
+
+**§IV — Algebraic operations (pp.344–346)**
+
+| | item | status | where |
+|---|---|---|---|
+| (14) | algebraic product `f_A f_B` | shipped | `FuzzySets.algebraicProduct` — and it **is** the Product t-norm (§6); agreement asserted in `fuzzy-laws` |
+| (15) | `AB ⊂ A ∩ B` | law | `ZadehSetLaws` |
+| (16) | algebraic sum, partial | shipped | `FuzzySets.algebraicSum`, faithful to the proviso; `checkAlgebraicSumDefined` makes the side-condition executable |
+| — | absolute difference (prose, p.344) | shipped | `FuzzySets.absoluteDifference` |
+| — | footnote 4: `A ⊕ B = A + B − AB` | shipped | the Product conorm — `union(a, b, Algebra.PRODUCT)` (§6) |
+| (17)/(18) | convex combination, **Λ a fuzzy set** | shipped | `FuzzySets.convexCombination` (§17.2) |
+| (19) | `A ∩ B ⊂ (A,B;Λ) ⊂ A ∪ B` | law | `ZadehSetLaws` |
+| (20) | `Min ≤ λf_A + (1−λ)f_B ≤ Max` | shipped/law | the scalar `convexCombination` overload is its λ; its content is what the eq. (19) law checks pointwise |
+| (21) | recovering Λ: `(f_C − f_B)/(f_A − f_B)` | **dropped** | an existence remark, partial where `f_A(x) = f_B(x)` (0/0); nothing asks for it; one lambda away if anything ever does |
+| — | fuzzy relation (prose, p.345) | shipped | as the *judgment* `MembershipFn<Pair<X, Y>>` — deliberately no type (§21.2); homogeneous in the paper (§21.1) |
+| — | n-ary relation (prose, p.346) | expressible | nested `Pair`/`Product`; no dedicated API — §15.4's wall is the reason to not encourage it |
+| — | composition `Sup_v Min` (prose, p.346) | shipped | `FuzzyRelations.compose`, sup-T per §21.4; derivation agreement is a `RelationLaws` law, `EXACT` |
+| — | associativity of ∘ (prose, p.346) | law | `RelationLaws`, tolerance `forTNorm`; a non-associative "T" fails it, asserted (§7) |
+| (22) | preimage `f_A = f_B ∘ T` | shipped | `FuzzyRelations.preimageUnder` — pointwise, total (§21.1) |
+| (23) | image `Max_{x∈T⁻¹(y)} f_A(x)` | shipped, **guarded** | `FuzzyRelations.imageUnder` — throws unless `isExhaustive` (§21.5); generalised by `imageUnderRelation` (§21.6); agreement a `RelationLaws` law at `forTNorm` (§21.9) |
+
+**§V — Convexity (pp.347–353)**
+
+| | item | status | where |
+|---|---|---|---|
+| (24) | α-cut `Γ_α` | shipped | `MembershipFn.alphaCut`; exact interval form `FuzzyNumber.alphaCutInterval` (§20.2) |
+| (25) | convexity | shipped | `DoubleMembershipFn.findNonConvexity` → `Verdict<ConvexityWitness>` (§19.1); ℝ¹ per §15.5 |
+| (26)–(30) | the intersection-theorem proof steps | proof internals | subsumed by the theorem row below |
+| — | *"If A and B are convex, so is their intersection"*, p.347 | pinned | `ZadehConvexityTest` — a law would blame the sampler (§19.7); the coarse-vs-fine grid demonstration is pinned alongside |
+| — | boundedness, p.348 | **dropped** | §19.6 — unsamplable in either direction; documented as `separationDegree`'s unchecked precondition |
+| — | `M = Sup_x f_A(x)`, p.348 | shipped | `MembershipFn.height` (§18.2); override law `≥`/`==` per §20.7 |
+| — | the ε-neighbourhood Lemma, p.348 | out | topological, needs Eⁿ (§18.3) — the reason `maximalGradeSet` drops *"essentially"* |
+| — | strict convexity, p.349 | **dropped** | §19.5 — vacuous in ℝ¹: every convex `Γ_α ⊆ ℝ` is strictly convex |
+| — | strong convexity, p.349 | shipped | `DoubleMembershipFn.findNonStrongConvexity`; strong ⟹ convex is a `ConvexityLaws` law (§19.7(1)) |
+| — | `C(A)`, the core, p.349 | shipped | `maximalGradeSet` (de-topologised, §18.3) alongside the modern `core` |
+| — | *"core of a convex set is convex"*, p.349 | pinned | `ZadehConvexityTest` (§19.7) |
+| — | p.350 corollary (E¹ uniqueness) | pinned | `ZadehConvexityTest` — pinned as **not grid-checkable**: two grid points tie across a peak (§19.7) |
+| — | shadow, p.350 | shipped | `FuzzySets.shadow` — domain-generic (§19.2), a slice early |
+| — | shadow preserves convexity, p.350 | out | a theorem about Eⁿ convexity; ℝⁿ is out (§19.4) |
+| — | `S_H(A) = S_H(B) ∀H ⇒ A = B`, p.350 | out | ranges over arbitrary hyperplanes (§19.4) |
+| (31)/(32) | separation `D = 1 − M̃`, `M̃ = Inf_H M_H` | **not implementable** | the definition is an Inf over every hypersurface; what ships is p.352's **theorem** |
+| — | p.352 theorem: `D = 1 − M` for bounded convex sets | shipped | `DoubleMembershipFn.separationDegree`, preconditions in KDoc, unchecked per §4 (§19.3); pinned in `ZadehConvexityTest`, not a law — checking it against its own implementation would be circular (§19.7) |
+
+**Every equation in the paper is now accounted for.** Nothing shipped lacks a
+row; every drop names the section that decided it. The two entries a reader
+should notice: (21) is the only *equation* dropped for want of a consumer
+rather than for unsoundness, and (31)/(32) is the only definition the paper
+states that no computer can implement — which is why §19.3 ships the theorem
+and says so.
+
+#### 21.9 First test run: the boundary axiom is **arithmetic** in Łukasiewicz — §14.6(a)'s twin
+
+One failure on the first run, and it was the suite catching its own author
+again. The eq. (23) agreement law shipped at `EXACT`, on the claim that
+`T(d, 1) = d` and `T(d, 0) = 0` are *"boundary selections, not arithmetic"* in
+every shipped t-norm. `verifyImage(Algebra.LUKASIEWICZ)` refuted it while both
+operations under test were correct.
+
+`T(a, 1) = a` is the t-norm boundary axiom — an identity of ℝ.
+`TNorms.LUKASIEWICZ` computes `max(0, a + b − 1)` literally, and `(a + 1) − 1`
+transits the neighbourhood of 1, where a double resolves only to
+`ulp(1) = 2.2e-16`:
+
+    a = 0.1    (a + 1) − 1 = 0.10000000000000009     Δ = 8.3e-17
+    a = 0.9    (a + 1) − 1 = 0.8999999999999999      Δ = 1.1e-16
+    min(a, 1)  ·  a × 1  ·  max(0, a + 0 − 1)        all exact
+
+**This is §14.6(a) with the signs changed** — there `1 − (1 − a)`, here
+`(a + 1) − 1`, both an exactness claim over-applied to arithmetic near 1, both
+caught by the suite failing for a correct subject on its first run. The
+distinction that survives: whether the boundary axiom's *implementation*
+selects or computes is **a fact about each t-norm, not about t-norms** —
+`min(a, 1)` selects, `a × 1` happens to be exact by IEEE multiplication, and
+Łukasiewicz rounds. There was no way to know but running it.
+
+**Decided:** the agreement law calibrates per §14.6(a) — `forTNorm(T)`, which
+collapses to `EXACT` for `STANDARD` and lands Łukasiewicz on `ARITHMETIC`
+(1e-14 ≫ 1.1e-16). The **derivation** laws stay `==`, deliberately: they
+compare identical arithmetic in identical fold order, a claim about the fold
+that no t-norm can break — and the broken-t-norm test proves the suite keeps
+the two apart, failing associativity for a non-associative "T" while the
+derivation law survives it.
+
+The over-claim never reached this record — §21.8 promised the agreement as an
+executable fact, not an exact one — but the *reason* belongs here: **wherever
+a law crosses a t-norm's boundary axiom, the law inherits the t-norm's
+arithmetic, not the axiom's exactness.** That is §20.9's inheritance rule and
+§14.6(a)'s calibration rule arriving at the same sentence.
+
+---
+
 ## Updated: 2026-07-16 — fuzzy-number design
 
 ### 20. Fuzzy numbers — **ALL RATIFIED 2026-07-16**
@@ -2050,10 +2518,11 @@ Acyclic. Each module independently justifiable.
                            users want this and no set theory)
 
     fuzzy-laws           publishable property suites + per-algebra tolerances
-                         → fuzzy-algebra, fuzzy-set, fuzzy-number
+                         → fuzzy-algebra, fuzzy-set, fuzzy-number, fuzzy-relation
                            (test-scope consumable)
                            [fuzzy-set edge added in slice 2a — §16.6; fuzzy-number
-                            in slice 3 — §20. The suites follow the modules they
+                            in slice 3 — §20; fuzzy-relation in slice 4 — §21.8.
+                            The suites follow the modules they
                             validate; still acyclic.
                             Note the shape: fuzzy-laws accretes an edge to every
                             module it publishes laws for, so it will end up
@@ -2076,6 +2545,12 @@ Acyclic. Each module independently justifiable.
                          similarity, extension principle, cylindrical
                          extension, CRI
                          → fuzzy-set
+                           [Built in slice 4 — §21, which corrects this entry
+                            three ways: Zadeh's relations are in X×X, "X×Y" is
+                            later convention (§21.1); "similarity" is dropped,
+                            the bundle being the attributed thing (§21.7); "CRI"
+                            was a control-layer name for the relational image,
+                            which ships as imageUnderRelation (§21.6).]
 
     fuzzy-number         FuzzyNumber, Interval, triangular / trapezoidal /
                          Gaussian / AlphaCutNumber, exact α-cut arithmetic

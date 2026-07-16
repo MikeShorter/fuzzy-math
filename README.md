@@ -289,7 +289,19 @@ either direction. Three of §V's four theorems are tested but not shipped as law
 suites, because each is conditional on convexity and a grid never *proves*
 convexity — so a failure would indict the sampler, not the code.
 
-**That completes Zadeh 1965.** `fuzzy-number` then took the first step past it:
+**`fuzzy-relation` finishes the paper.** §IV's fuzzy relation (p.345) ships as a
+*judgment* rather than a type — Zadeh: *"a fuzzy relation in X **is** a fuzzy set
+in the product space X × X"*, so a relation is a `MembershipFn<Pair<X, Y>>` and
+nothing more. The composition `Sup_v Min[f_A(x,v), f_B(v,y)]` (p.346) ships as
+`compose`, parameterised by algebra like everything else; eq. **(22)** turns out
+to be pointwise (`f_A = f_B ∘ T`, no domain anywhere); and eq. **(23)** — the
+image `Max_{x∈T⁻¹(y)} f_A(x)` — is the interesting one: over a sampled grid the
+preimage is almost surely empty and the fold would return `0.0` as *the* answer,
+so `imageUnder` **requires an exhaustive domain and throws otherwise**. Every
+numbered equation (1)–(32) is now shipped, dropped with a recorded reason, or
+pinned in tests — the full audit is [CLAUDE.md](CLAUDE.md) §21.8.
+
+`fuzzy-number` took the first step past the paper:
 fuzzy numbers, `Interval`, and exact α-cut arithmetic. That module exists to test
 a decision rather than to add a feature — the claim that a parametric function may
 override an analysis operation with its closed form. Building it split the claim
@@ -299,8 +311,8 @@ barrier but a **signal that one name is covering two questions**. Hence `alphaCu
 (which grid points are in `Γ_α`) alongside `alphaCutInterval` (what `Γ_α` *is*),
 and the integral sent to `fuzzy-defuzz` rather than smuggled in as a σ-count.
 
-What remains of the twelve-module graph — `fuzzy-relation`, `fuzzy-defuzz`,
-`fuzzy-aggregate`, and the rest — is later mathematics built on this substrate.
+What remains of the twelve-module graph — `fuzzy-defuzz`, `fuzzy-aggregate`, and
+the rest — is later mathematics built on this substrate.
 The graph and the reasoning behind each cut are in [CLAUDE.md](CLAUDE.md) §10.
 
 ## License

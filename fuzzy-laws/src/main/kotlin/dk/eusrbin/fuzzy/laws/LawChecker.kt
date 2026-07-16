@@ -28,6 +28,16 @@ internal class LawChecker(
     private val pool: DoubleArray = sampling.pool()
     private val results = ArrayList<LawResult>()
 
+    /**
+     * Checks [check] exactly once — for laws that are a single fact about the
+     * subject rather than a ∀ over degrees or a domain (e.g. "the witness the
+     * subject returned reproduces", §19.7(3)-shaped). The check builds its own
+     * [Counterexample], which carries whatever the fact is about.
+     */
+    fun law0(law: String, citation: String, check: () -> Counterexample?) {
+        results += LawResult(law, citation, check())
+    }
+
     /** Checks [predicate] at every degree in the pool. */
     fun law1(law: String, citation: String, predicate: (Double) -> String?) {
         for (a in pool) {

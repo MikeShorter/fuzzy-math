@@ -5,10 +5,12 @@ package dk.eusrbin.fuzzy.set
  * `Pair<A, B>`.
  *
  * CLAUDE.md §15.4. Present in slice 2a because it **earns itself twice later**:
- * `fuzzy-relation` (§10) is defined on X×Y and needs exactly this for sup-T
- * composition, `Sup_v Min[f_A(u,v), f_B(v,w)]` (Zadeh p.346), and for the
- * extension principle (eq. 23). It costs one class now and unblocks a module
- * later.
+ * `fuzzy-relation` (§10, built in §21) needs exactly this for sup-T composition,
+ * `Sup_v Min[f_A(x,v), f_B(v,y)]` (Zadeh p.346), and for the fuzzy sets induced
+ * by mappings (eq. 23). Note Zadeh's own relations are **homogeneous** — *"a
+ * fuzzy set in the product space X × X"*, p.345; "defined on X×Y" was this
+ * KDoc's folklore, corrected when the scan was read (§21.1). It cost one class
+ * then and unblocked a module later.
  *
  * ```java
  * Domain<Pair<String, String>> pairs =

@@ -36,6 +36,11 @@ dependencies {
     // It is only paid in test scope. Recorded here rather than rediscovered at
     // module nine.
     api(project(":fuzzy-number"))
+
+    // CLAUDE.md §21.8 — the edge §10's note anticipated, arriving on schedule.
+    // MembershipFn<Pair<X,Y>> and Mapping appear in RelationLaws' signatures.
+    // Still acyclic: fuzzy-relation -> fuzzy-set -> fuzzy-algebra.
+    api(project(":fuzzy-relation"))
 }
 
 // CLAUDE.md §7 — this is a CONSUMABLE artifact, not an internal test folder.

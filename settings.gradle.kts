@@ -47,3 +47,8 @@ include("fuzzy-set")
 // unproven claim until something overrode something. It is proven, and corrected
 // (§20.8), by this module.
 include("fuzzy-number")
+
+// §21: fuzzy relations. Finishes Zadeh 1965 — composition (p.346) and eqs.
+// (22)/(23) were the paper's last unshipped equations — and collects §15.4's
+// promise that Product "earns itself twice".
+include("fuzzy-relation")
