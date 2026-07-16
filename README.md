@@ -308,11 +308,27 @@ override an analysis operation with its closed form. Building it split the claim
 in two and corrected it: an override is valid where the operation **means the same
 thing**, and where the return type cannot hold the closed form, that is not a
 barrier but a **signal that one name is covering two questions**. Hence `alphaCut`
-(which grid points are in `Γ_α`) alongside `alphaCutInterval` (what `Γ_α` *is*),
-and the integral sent to `fuzzy-defuzz` rather than smuggled in as a σ-count.
+(which grid points are in `Γ_α`) alongside `alphaCutInterval` (what `Γ_α` *is*).
+(The integral was at first sent to `fuzzy-defuzz`; building that module returned
+it — every defuzzifier consumes a *ratio* of integrals, and the grid spacing
+cancels exactly, so a standalone `∫f dx` has no consumer. CLAUDE.md §22.1.)
 
-What remains of the twelve-module graph — `fuzzy-defuzz`, `fuzzy-aggregate`, and
-the rest — is later mathematics built on this substrate.
+**`fuzzy-defuzz` is the seam to the control layer above** — scalar summaries of a
+membership function: `centroid`, `bisector`, and the maxima family, under
+mathematical names rather than the control literature's acronyms. Two things
+define it. Every operation divides by a fold, and when the fold finds no mass
+there is no quotient to return — so the operations **throw rather than invent a
+point**, with a message that reports what was done (*"no mass found on this
+domain"*), never more: over a grid, a set narrower than the spacing has mass the
+fold cannot see, and the same set's `height` may honestly say `1.0` while the
+centroid refuses. And the defuzzifiers compute at the fold's own fidelity — never
+through the virtual `height`, whose analytic overrides would empty the maxima set
+for every fuzzy number whose peak misses the grid, a bug the record predicted a
+slice before the module existed (CLAUDE.md §20.9, §22.2).
+
+What remains of the twelve-module graph — `fuzzy-aggregate`, `fuzzy-linguistic`,
+and the rest — is later mathematics awaiting sources this project can actually
+consult (CLAUDE.md §18.2's rule).
 The graph and the reasoning behind each cut are in [CLAUDE.md](CLAUDE.md) §10.
 
 ## License

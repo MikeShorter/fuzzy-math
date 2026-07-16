@@ -41,6 +41,15 @@ dependencies {
     // MembershipFn<Pair<X,Y>> and Mapping appear in RelationLaws' signatures.
     // Still acyclic: fuzzy-relation -> fuzzy-set -> fuzzy-algebra.
     api(project(":fuzzy-relation"))
+
+    // CLAUDE.md §22.6 — the first TEST-SCOPE-ONLY edge in the graph, and the
+    // deviation is justified by §10's note's own rationale: "the suites follow
+    // the modules they validate", and fuzzy-defuzz has no suite. Nothing there
+    // is consumer-extensible (§22.2 closed the override path), so a DefuzzLaws
+    // would be an extension point's criteria with no extension point — the
+    // inverse of §14.5's defect. The module's central facts are pinned in this
+    // module's own tests instead, where fuzzy-number is also on the path.
+    testImplementation(project(":fuzzy-defuzz"))
 }
 
 // CLAUDE.md §7 — this is a CONSUMABLE artifact, not an internal test folder.

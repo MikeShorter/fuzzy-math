@@ -6,6 +6,234 @@ file is wrong and should be fixed deliberately, not silently.
 
 ---
 
+## Updated: 2026-07-16 — fuzzy-defuzz design
+
+### 22. Defuzzification — **ALL RATIFIED 2026-07-16**
+
+§11a's module, and the last one §18.2's rule leaves standing: everything else
+in §10's tail needs a source not on hand. §11a's claim — *scalar summaries of a
+membership function*, σ-count-shaped — was **verified rather than inherited**:
+the formulas are self-describing arithmetic, and only the names are attribution.
+**Bergmann contains zero occurrences of any of it** — "defuzz", "centroid",
+"gravity", "mean of maxima", "bisector", "Mamdani" all absent; its one "maxima"
+hit is lattice talk and its "control" hits are the journal name — checked, not
+assumed (§17.4's discipline). Zadeh 1965 predates defuzzification entirely. So
+the module is **`Attributed:` throughout**, primaries named and not on hand
+(Mamdani & Assilian 1975; Van Leekwijck & Kerre 1999 as the survey), exactly as
+`fuzzy-number` was (§20.6).
+
+#### 22.1 §20.1(b)'s debt does not land — `h` cancels, and §20.1(b) is amended
+
+The brief's algebra, verified numerically (§14.6's standing lesson): a uniform
+grid with spacing `h` gives `∫x·f dx ≈ h·Σxf` and `∫f dx ≈ h·Σf`, and the
+centroid is their **ratio**, so `h` cancels exactly:
+
+    T(0,1,3), true centroid 4/3:
+    n =   64      Σf =   31.5      Σxf/Σf = 1.3333333333
+    n = 4096      Σf = 2047.5      Σxf/Σf = 1.3333333333
+                  ^ scales with n — the σ-count non-integral, unchanged
+                                    ^ flat — the ratio is h-free
+
+**And bisector too**: partial sums are compared against half the total — `h` on
+both sides — and the grid bisector converges to the analytic `3 − √3`
+(1.8e-2 → 1.8e-4 over 64 → 4096 points). No operation in this module consumes a
+standalone `∫f dx`.
+
+**Decided: `integral` does not ship.** §20.1(b)'s *split* was right — `Σ` and
+`∫` are two questions — but its *placement* was wrong: it exported the second
+question to a module where the integral only ever appears in a ratio that
+reduces to the σ-count expression again. Shipping it to keep the promise would
+be API with no consumer — §14.6(c)'s "suppression with a nicer name" in a
+different register. §15.2's lesson, third application: the concept you delete
+is the one you were right about. §20.1(b) carries the amendment note.
+
+**The precondition the algebra needs, stated because the brief missed it:**
+the cancellation assumes **uniform spacing**, which [Sampled] guarantees and
+`Enumerable<Double>` does not. Over an `Enumerable` the same expression is the
+centroid **of the enumerated points as discrete mass** — duplicates counted
+twice, §16.3's σ-count semantics arriving at a second operation — which is the
+honest answer for a discrete carrier and a density-biased one for a caller
+hand-rolling a non-uniform "grid" as an `Enumerable`. One question, two
+carriers, both answers stated in the KDoc.
+
+#### 22.2 The §20.9 case — and the gap it exposes in §21.3
+
+**§20.9 predicted this module's worst bug cleanly, one slice in advance, no
+bending.** `MOM = mean(maximalGradeSet(over))` inherits the *virtual* `height`
+through a default body two calls deep — exactly the shape §20.9 named — and for
+every fuzzy number whose peak misses the grid, the inherited analytic `1.0`
+empties the filter:
+
+    T(-1, 0.5, 2) over 512 points:
+    filter f(x) >= height(over)      → 0 elements    (mean of the empty set)
+    filter f(x) >= the fold's own max → 2 elements    → mean = 0.5   (true MOM: 0.5)
+
+That is **the normal case for the module's main input**, not a corner.
+
+**Decided: the defuzzifiers filter against the fold's own maximum — question
+and filter at one fidelity.** That set is never empty (a nonempty grid attains
+its fold max, and §16.3 guarantees nonempty), and it converges to the true
+answer. Rejected: the tolerance band `f ≥ height − ε` — `alphaCutTouchesWindow`'s
+ghost (§19.6), ε unmotivated, and unnecessary once the fidelities are coherent.
+Rejected: §18.3's name-both — the return type holds the true answer fine and
+nobody asks the grid-maxima question standalone, so it stays a private
+computation. **The two-questions structure appeared; the return-type detector
+did not fire; not a sixth arrival.** (Bisector-over-grid vs over-ℝ: also null —
+a converging sample of one question, [Sampled]'s standing caveat.)
+
+**The reason under the fix is a gap in §21.3, and the gap is the finding.**
+"Mixes fidelities it cannot control" — why *cannot*? By §21.3's own rule, MOM
+should be a **member with overrides**: `FuzzyNumber` earns its keep
+independently (§20.2) and the closed forms are sitting there — `T(l,m,r) → m`,
+`Tz(a,b,c,d) → (b+c)/2`, `Gaussian → mean` — with MOM's universe supplied, not
+fixed, so §20.8's dispatch applies unchanged. It cannot be a member because
+**§11a put it in a downstream module**. §21.3's rule was derived from two cases
+that both lived in the same module as their type; this is the first query
+*downstream of the type it queries*, and the rule is silent there — a gap, not
+a contradiction. The rule that fills it, with its boundary stated:
+
+> **A query that cannot host its own overrides must not consume a virtual
+> answer — it can neither match the fidelity nor correct it.** It computes at
+> the one fidelity it owns: the fold's.
+
+**And this prices something §11a did not.** §11a bought boundary legibility;
+the bill, now itemised: five queries permanently denied the override path,
+settling for an O(n) converging answer where an O(1) exact one exists. **§11a
+holds** — the answers converge, the cost is small, and the boundary is the
+thing this project exists to draw — but it is a cost paid, not a cost absent.
+The knob, recorded in advance: if it ever bites, `FuzzyNumber` gains an
+analytic `meanOfMaxima` **in `fuzzy-number`** — additive, no graph change, no
+§11a reversal.
+
+#### 22.3 Zero found mass: the operations throw — and the epistemic status splits by carrier
+
+Every operation here divides by a fold — `Σf` for centroid and bisector, the
+maximal degree for the maxima family — and when the fold finds nothing, the
+quotient is not a point of X. IEEE's answer is `NaN` (verified: `0.0/0.0`);
+`0.0` is a plausible-looking `x`; §11a says this value reaches an actuator.
+
+**An earlier draft called the zero fold "definitive rather than epistemic",
+and over a [Sampled] domain that is backwards.** `Σf = 0` on a grid means no
+mass was found *at the sampled points*: a spike narrower than the spacing —
+`T(0.5000001, 0.5000002, 0.5000003)` over `Sampled(0, 1, 1024)`, constructible
+today — has mass on the window while every grid point reads zero. That is a
+**negative finding from a sampled search**, and the record's most-arrived-at
+rule (§16.4, §19.7(2), §20.7, §21.5's null) already governs it: *positive
+findings are facts; negative findings are not.* Over an **`Enumerable`** the
+universe is the element set, and `Σf = 0` **is** §II p.340's emptiness, proven.
+Over a `Sampled` it is `NotRefuted`-shaped. The coherence test that catches the
+wrong wording: `checkEmptiness(over)` — the operation callers are pointed at —
+returns `NotRefuted` on that grid, and `height(over)` returns **`1.0`** for the
+spike via §20.8's override. An exception claiming "no mass on this window"
+would contradict both, from the same library, about the same set.
+
+**Decided: throw, on the thinner reason that survives.** The fold found no
+mass, **so there is no quotient to return, and returning one would invent it**
+— whatever the epistemic status of the emptiness. The message reports *what was
+done*, not what is true: **"no mass found on this domain"** — §20.7's shape,
+once more. Rejected: `NaN` (the language's answer; a silent `0.0` with extra
+steps); nullable/`Verdict`-shaped returns (§9 keeps the return primitive — and
+the caller who wants the three-valued answer already owns it:
+`checkEmptiness(over)` shipped in 2a, and is named in the message).
+
+**This is the second refusing operation, not the first, and one slice after
+§21.5 it is close to a rule, so it is stated as one:**
+
+> **An operation may refuse when the refusal costs nothing and the alternative
+> is a fabricated answer.** §21.5's `imageUnder` refuses on a *structural fact
+> about the carrier* (an O(1) field read); these refuse on a *negative search
+> finding* (a branch on the divisor already in hand). Both satisfy §4's real
+> concern — no fold is added; the check is the computation — and both replace
+> an invented value with a stop.
+
+Why `height` returns `0.0` in the same situation without complaint, since
+someone will ask: `height` is documented as a **lower bound**, and `0.0` is an
+honest lower bound. A centroid has no lower-bound reading — a wrong point of X
+is not a bound on anything, it is just wrong.
+
+**Message vocabulary, decided rather than let in by habit:** the exception
+message stays substrate-only. The KDoc — which already speaks at the §11a seam
+— carries the control-layer translation (that a zero fold is the
+*no-rules-fired* state a controller must expect, and `checkEmptiness` is how to
+test for it first). §21.6's line, applied to strings: the control word does its
+work at the boundary and stops there.
+
+#### 22.4 Centre of sums: dropped — for the reason that survives a source arriving
+
+Two reasons, and the durable one first. **COS's natural signature takes a
+collection of per-rule output sets — control structure in a substrate
+signature.** That is §11's line, not a sourcing problem, and it holds even if a
+definitive formula turns up tomorrow. Second, the sourcing is also fatal today:
+the formula is genuinely variant in the literature (overlap counted once or
+twice; "sum" as algebraic sum or union), and no text on hand defines *any*
+version — **intensification-shaped** (§17.4: the *formula* unverifiable, not
+merely the name), and §17.4 says those drop.
+
+The §18.2 table for the slice:
+
+| operation | ships | authority |
+|---|---|---|
+| `centroid` | ✔ | formula self-describing (`Σxf/Σf`); **`Attributed:`** the name and the notion, control literature, not on hand |
+| `bisector` | ✔ | first grid point where the cumulative reaches half the mass; **`Attributed:`** likewise |
+| `meanOfMaxima`, `smallestOfMaxima`, `largestOfMaxima` | ✔ | mean/min/max of the fold-fidelity maximizing set (§22.2); **`Attributed:`** the names ("MOM"/"SOM"/"LOM" are control acronyms and are not used) |
+| centre of sums | **dropped** | §11's structure objection + §17.4's formula objection, above |
+| `integral` | **not shipped** | §22.1 — no consumer; §20.1(b) amended |
+
+#### 22.5 §11a's domain restriction is **static** — the case §16.4 does not cover
+
+§11a says these operations *"require an `Enumerable` or `Sampled` domain"*,
+which reads like §21.5's runtime guard. It is not, and no mechanism ships: a
+centroid needs **arithmetic on X**, so the operations live on
+`DoubleMembershipFn` and take `Domain<Double>` — and `Product<A,B>` is a
+`Domain<Pair<A,B>>`, which is never a `Domain<Double>`. The type system
+delivers §11a's restriction with no guard, no overload, no `require`.
+
+Recorded because §21.5 was about getting this distinction wrong in the other
+direction: **exhaustiveness is computed, not declared (§16.4) — but the element
+type really is static.** A runtime `require` here would re-check what the
+compiler already proved; a static type for exhaustiveness would have refused
+`Product(Enumerable, Enumerable)`. Each constraint goes where its knowledge
+lives.
+
+#### 22.6 Names, the seam, and why there is no `DefuzzLaws`
+
+**The module name carries the control word deliberately; nothing inside does.**
+§21.6 declined to carry "CRI" into an API; `fuzzy-defuzz` *is* the artifact
+name — and that is §11a's own argument, not a contradiction: *"naming it as a
+distinct artifact makes the substrate/control boundary legible in the module
+graph rather than buried in a package."* The boundary word does its work at the
+boundary. Inside: object `Defuzzifiers` (mirroring the artifact, house
+pattern), operations `centroid`, `bisector`, `meanOfMaxima`,
+`smallestOfMaxima`, `largestOfMaxima` — mathematical names, acronyms not
+carried.
+
+**Decided: no published `DefuzzLaws` suite — because there is no subject.**
+This is §21.2's test one module later: `TNormLaws.verify(myTNorm)` has a
+`myTNorm`; a `DefuzzLaws.verify(…)` has no argument to take, because §22.2's
+gap just closed the override path — nothing here is consumer-extensible, and
+every candidate law (`SOM ≤ MOM ≤ LOM`, centroid within the window) holds for
+every input by arithmetic construction. **A published suite would be an
+extension point's criteria with no extension point — the exact inverse of
+§14.5's defect, and §7 forbids both.** The module's central facts are pinned in
+`fuzzy-laws`' **own tests**, where `fuzzy-number` and `fuzzy-defuzz` are both
+on the path (the accretion §10 anticipated, paying off): the **throw** for
+`T(-0.5, 0.5, 1.5)` over `Sampled(2, 3)` asserted as a fact; the spike whose
+`height` is `1.0` while the centroid refuses — the §22.3 wording, executable;
+the §20.9 case returning `≈ 0.5` instead of crashing; the 4/3 convergence and
+the h-cancellation.
+
+**Consequence, ratified:** the `fuzzy-laws → fuzzy-defuzz` edge is
+**`testImplementation`, not `api`** — the first test-scope-only edge in the
+graph, and a deviation from §10's accretion note justified by that note's own
+rationale: *the suites follow the modules they validate*, and here there is no
+suite. No defuzz type appears in any `fuzzy-laws` signature.
+
+Tolerances in those tests calibrate per operation and are never `EXACT`
+(§14.6(a), §21.9): the centroid is a ratio of sums — arithmetic end to end —
+and even the maxima family ends in a computed mean.
+
+---
+
 ## Updated: 2026-07-16 — fuzzy-relation design
 
 ### 21. Fuzzy relations — **ALL RATIFIED 2026-07-16**
@@ -120,6 +348,14 @@ nothing shipped: every §16.5 member either lives on `MembershipFn` itself or
 on a subtype (`DoubleMembershipFn`, `FuzzyNumber`) that §16.1/§20.2 justified
 independently, with real overrides (§20.1, §20.5, §20.8). §21.2's reversing
 knob is unchanged.
+
+> **Gap found by §22.2 (2026-07-16):** this rule was derived from cases living
+> in the same module as their type, and is silent on a query **downstream** of
+> the type it queries. `meanOfMaxima` meets both of the rule's conditions —
+> `FuzzyNumber` is a justified subtype with closed forms — and still cannot be
+> a member, because §11a put it in `fuzzy-defuzz`. The rule that fills the gap
+> is §22.2's: a query that cannot host its own overrides must not consume a
+> virtual answer.
 
 #### 21.4 `compose` — sup-T by derivation, direct fold, and an `EXACT` law for any T
 
@@ -526,6 +762,12 @@ two operations** — and in both cases the resolution is §18.3's: name both, pu
 each where it belongs. §20.2 does it for `alphaCut`; sending the integral to
 `fuzzy-defuzz` (§10 — *"centroid… `∫x·f(x)dx / ∫f(x)dx`"*) does it for
 `sigmaCount`.
+
+> **Amended by §22.1 (2026-07-16):** the *split* stands — `Σ` and `∫` are two
+> questions — but the *placement* was wrong. In every defuzzifier the integral
+> appears only in a **ratio**, and the grid spacing `h` cancels exactly
+> (verified numerically), so `fuzzy-defuzz` has no use for a standalone
+> `∫f dx` and none ships. The second question turned out to have no consumer.
 
 **Decided — §15.3, narrowed by one qualifier:**
 

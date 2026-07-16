@@ -52,3 +52,8 @@ include("fuzzy-number")
 // (22)/(23) were the paper's last unshipped equations — and collects §15.4's
 // promise that Product "earns itself twice".
 include("fuzzy-relation")
+
+// §22: defuzzification — §11a's sanctioned seam to the control layer above,
+// and the one module in §10's tail that needs no source we lack (§18.2's rule
+// amputates the rest until sources arrive).
+include("fuzzy-defuzz")
