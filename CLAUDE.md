@@ -6,12 +6,168 @@ file is wrong and should be fixed deliberately, not silently.
 
 ---
 
+## Updated: 2026-07-16 — fuzzy-clj + fuzzy-bom design
+
+### 23. The first non-Kotlin consumer — **ALL RATIFIED 2026-07-16**
+
+§9 is the largest ratified claim in the record that nothing had ever tested,
+and after the first Central publish its defects become permanent (§14.3). This
+slice ran the consumer before the publish. The headline: **§9 held — zero
+adapters needed** — and the section's findings are mostly about what that means
+for the module §10 promised.
+
+#### 23.1 Erratum: §22's opening sentence, corrected
+
+§22 opened by claiming everything after fuzzy-defuzz was source-gated.
+`fuzzy-clj` and `fuzzy-bom` need no source at all — one is adapters and sugar,
+the other version alignment; neither is mathematics, so §18.2 has no
+jurisdiction. Corrected in place. Recorded here because the failure mode is
+§17.1's wearing a new coat: the defuzz brief said "the one module left that
+needs no source we do not have", *meant* the mathematical tail, did not say so
+— and §22 hardened the imprecision into a claim that the project was blocked.
+
+#### 23.2 The bytecode, read — and `-jvm-default` pinned
+
+`javap` on the real class files, per §17.1's discipline (§16.5's *"it inherits
+the lot"* was folklore until someone read the bytecode):
+
+- **`MembershipFn`**: `apply` abstract; all ~17 analysis members are genuine
+  JVM `default` methods. §16.5 is **true in the class file**.
+- **`DoubleMembershipFn`**: `applyAsDouble` abstract at exactly `(D)D`, plus a
+  primitive `apply(double)` default and the boxed bridge. §16.1's promise is
+  **kept**, for the consumer it named.
+- **`TNorm`**: `apply(DD)D` abstract; `invoke`/`residuum` default.
+
+**And one knob nobody chose:** `$DefaultImpls` classes sit alongside every
+interface — the 2.4.20-Beta1 compiler is in `-jvm-default=enable`
+(compatibility) mode *by its own default*, recorded nowhere. That is exactly
+the state §14.1/§14.2 exist to prevent. **Decided: pinned explicitly to
+`enable` in `fuzzy.kotlin-conventions`** — ratifying the precise bytecode the
+conformance suite validated. Rejected: `no-compat` (drops `$DefaultImpls`,
+smaller jars) — it would swap tested bytecode for untested bytecode to save
+bytes nobody counted; revisit deliberately if ever, via this record. **The
+standing rule extends: `-jvm-default` moves only via a decision in this file**,
+§14.1's rule arriving at its sibling.
+
+#### 23.3 The experiment: §9 held, and the adapter-detector reports a null
+
+Ten sections of Clojure against the real jars (no Kotlin, no kotest), consumed
+through a `deps.edn` of `:local/root` jars. Per the governing rule — *every
+adapter fuzzy-clj turns out to need is a §9 defect, and the fix belongs
+upstream* — the deliverable table:
+
+| §9 promise | result |
+|---|---|
+| *"Clojure `reify`s them in one line"* | **true, verbatim** — `(reify TNorm (apply [_ a b] …))`, inherited `residuum` works |
+| §14.4: laws without adopting a framework | **kept** — `TNormLaws/verify` on the reified t-norm; a broken one throws `LawViolationException`, and `instance? AssertionError` → `true`, so it reads as a failure in a runner `fuzzy-laws` was never told about — that decision's dividend, collected |
+| §16.5's inherited members | all reachable from a one-line reify |
+| §16.1's primitive path | `applyAsDouble` reify drives `height`, `findNonConvexity`, `Defuzzifiers` |
+| §16.4: *"idiomatic Java, not ceremony"* | from Clojure: `condp instance?` + `.getWitness`, three readable lines — **the cost was priced correctly** |
+| §21.2's `kotlin.Pair` | works — compose and `findNonTransitivity` run; needs a type hint and `.getFirst`/`.getSecond` with casts |
+
+**Adapters required: zero. The candidate detector — "an adapter that has to
+exist is a §9 defect" — never fired. Null result, reported as one** (§21.5's
+discipline): §9 is simply true, vindicated by its first real consumer, which is
+the best available outcome and not a boring one.
+
+Three qualifications, none a defect, all pinned as executable facts:
+
+1. **Clojure 1.12's functional-interface coercion does not reach these SAMs** —
+   a bare `#(…)` fails with a `ClassCastException`. §9 promised `reify`, not
+   coercion, so nothing breaks — but the assumption that 1.12 made SAM-wrapping
+   obsolete is dead, and the conformance suite asserts the failure so a future
+   Clojure that fixes it announces itself (§7's test-of-the-test).
+2. **`Enumerable.of` is ambiguous at arity 1 from Clojure** (vararg vs
+   `Collection` overload) — resolves reflectively to `Collection`, works, warns.
+   An ergonomic nick, not a §9 breach.
+3. **`kotlin.Pair`: kept, and priced.** The stdlib is already a hard `api`
+   dependency whose version §14.2 controls, so the type costs a *name* in
+   consumer source, not a new dependency. Measured pain: one hint, two accessor
+   calls. `Map.Entry` would be no better from Clojure; a bespoke pair type is a
+   new concept (§15.2). Cost of changing — `Product`, `shadow`, all of
+   `fuzzy-relation` — dwarfs the benefit. Permanent after first publish,
+   accepted with eyes open.
+
+§21.7's deferred question (does `Verdict` want a conjunction?) was **not met**:
+nothing in ten sections needed to combine verdicts. Still deferred, now with
+one consumer's evidence that the need is not urgent.
+
+#### 23.4 The §15.2 verdict: the published sugar module deletes itself
+
+*"What does fuzzy-clj actually add beyond kebab-case?"* — measured: **almost
+nothing**. Every operation is one clean interop call. A published sugar module
+would be abstraction on spec for a consumer who demonstrably does not need it —
+§21.2's test, failed the same way one slice later.
+
+**Decided: `fuzzy-clj` ships as an *unpublished conformance module*** — the
+brief's own framing (*"fuzzy-clj is fuzzy-laws for §9"*), purified: a
+`clojure.test` suite wired into `./gradlew check`, so **every build re-proves
+§9 from Clojure**, and a regression — a member losing its `default` body, a
+signature going hostile, the `-jvm-default` knob drifting — fails the build
+before it can reach a publish. Its audience is this repository and the §9
+contract, not Maven Central.
+
+This also dissolves the §10 collision the brief flagged: the many-valued-logic
+Clojure user §10 protects depends on `fuzzy-algebra` directly — which the
+experiment just proved is pleasant — rather than being handed a sugar module
+that drags in set theory.
+
+**The knob:** if a real Clojure consumer ever asks for idiom — kebab-case,
+`fn`→SAM wrappers (justified by qualification 1), vector→`Enumerable` — publish
+it *then*, additively, with the conformance suite as its ready-made test bed.
+
+#### 23.5 `fuzzy-bom`, and §10's arrow deleted — wrong three times, as suspected
+
+`fuzzy-bom` is a Gradle `java-platform`: version constraints on the **six
+published modules** (`fuzzy-algebra`, `fuzzy-set`, `fuzzy-number`,
+`fuzzy-relation`, `fuzzy-defuzz`, `fuzzy-laws`). It does **not** list
+`fuzzy-clj`, which is unpublished.
+
+§10's `fuzzy-clj → BOM` arrow is deleted: (1) it was a different *kind* of
+arrow — every other §10 line is a compile-path dependency on code, and a BOM
+contains none; (2) it omitted the real accretion — the conformance harness
+depends test-scope on every published module, the same shape §10's note
+predicted for `fuzzy-laws`; (3) **verified, not inherited: tools.deps supports
+only jar artifacts — Maven BOM / `dependencyManagement` import is
+unimplemented, an open feature request** (clojure.org's deps.edn reference;
+the tools.deps repository). The arrow pointed the module's own audience at a
+facility their build tool cannot use. The BOM serves Maven and Gradle
+consumers; the conformance module's `deps.edn` documents per-artifact pinning
+by example.
+
+**Central only, no Clojars** — one line, so nobody re-litigates: Clojars
+matters for artifacts Clojure consumers *depend on*, and after §23.4 no
+published artifact is Clojure-specific; deps.edn resolves Maven Central by
+default, which the experiment used. Revisit only if §23.4's knob ever turns.
+
+#### 23.6 Scaffolding, each with its knob (§13: versions verified, not recalled)
+
+- **Clojure `1.12.5`** — latest stable on Central, checked 2026-07-16 (1.13 is
+  alpha). Pinned in the version catalog like everything else.
+- **Conformance runner: a hand-rolled `JavaExec` on `clojure.main`**, wired
+  into `check`. Rejected: the clojurephant Gradle plugin — a third-party plugin
+  is a heavier dependency than one task, for one module that compiles nothing.
+  The knob is one task registration.
+- **`fuzzy.platform-publishing-conventions`** — the existing publishing
+  convention is hard-wired to vanniktech's `KotlinJvm`, which a `java-platform`
+  cannot use. The shared POM moved to a helper both conventions call; the
+  platform convention configures `JavaPlatform()` instead. vanniktech 0.37.0
+  re-verified current on Central.
+
+---
+
 ## Updated: 2026-07-16 — fuzzy-defuzz design
 
 ### 22. Defuzzification — **ALL RATIFIED 2026-07-16**
 
-§11a's module, and the last one §18.2's rule leaves standing: everything else
-in §10's tail needs a source not on hand. §11a's claim — *scalar summaries of a
+§11a's module, and the last **mathematical** one §18.2's rule leaves standing:
+everything else in §10's *mathematical* tail needs a source not on hand.
+
+> **Corrected by §23.1 (2026-07-16):** as first written, this sentence claimed
+> the whole tail was source-gated. False — `fuzzy-clj` and `fuzzy-bom` are not
+> mathematics, so §18.2 has no jurisdiction over them, and nothing blocked the
+> next slice. §17.1's rule, applied to schedules: a confidently wrong statement
+> about what happens next misleads more than a wrong citation. §11a's claim — *scalar summaries of a
 membership function*, σ-count-shaped — was **verified rather than inherited**:
 the formulas are self-describing arithmetic, and only the names are attribution.
 **Bergmann contains zero occurrences of any of it** — "defuzz", "centroid",
@@ -2815,8 +2971,19 @@ Acyclic. Each module independently justifiable.
 
     fuzzy-clj            idiomatic Clojure namespace (reify adapters, sugar)
                          → BOM
+                           [Built in slice 6 as an UNPUBLISHED conformance
+                            harness instead — §23.4: the experiment found zero
+                            adapters needed, so the published sugar module
+                            deleted itself (§15.2). The arrow to BOM is gone:
+                            wrong kind of arrow, and deps.edn cannot consume a
+                            BOM at all (§23.5). Real dependencies: test-scope
+                            on every published module.]
 
     fuzzy-bom            version alignment for consumers
+                           [Built in slice 6 — §23.5: constraints on the six
+                            published modules. Serves Maven and Gradle
+                            consumers only; tools.deps has no BOM import, so
+                            deps.edn consumers pin per-artifact versions.]
 
 ### 11. Non-goals (decided, not deferred)
 

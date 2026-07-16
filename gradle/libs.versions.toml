@@ -49,6 +49,11 @@ vanniktech-publish = "0.37.0"
 # entry here. See the [libraries] section below.
 kotest = "6.2.2"
 
+# The §23 conformance harness (fuzzy-clj) — the first non-Kotlin language in
+# the build. Latest STABLE on Maven Central, verified 2026-07-16; 1.13 exists
+# only as alphas. Test-scope-shaped: no published artifact depends on it.
+clojure = "1.12.5"
+
 [libraries]
 # Gradle plugins consumed as *libraries* on build-logic's compile classpath.
 # This is the documented workaround for the fact that typesafe `libs.*`
@@ -73,6 +78,10 @@ kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "
 kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
 kotest-property = { module = "io.kotest:kotest-property", version.ref = "kotest" }
+
+# Runs the fuzzy-clj conformance suite (§23.4/§23.6). Brings spec.alpha and
+# core.specs.alpha transitively from Central.
+clojure = { module = "org.clojure:clojure", version.ref = "clojure" }
 
 # NO junit-bom, deliberately — and this is the one exception to "pin everything
 # here" that is worth writing down.

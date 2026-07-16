@@ -326,9 +326,25 @@ through the virtual `height`, whose analytic overrides would empty the maxima se
 for every fuzzy number whose peak misses the grid, a bug the record predicted a
 slice before the module existed (CLAUDE.md §20.9, §22.2).
 
+**The library's largest untested claim was §9** — *"consumers are any JVM
+language, not just Kotlin"* — and before anything publishes to Maven Central it
+got its first real consumer: a Clojure suite consuming the actual jars, no
+Kotlin and no kotest anywhere near it. The verdict: **§9 held, with zero
+adapters needed.** A one-line `reify` inherits every analysis member (verified
+in the bytecode, not just the language — the interface methods are genuine JVM
+`default` methods, and the compiler flag behind that is now pinned rather than
+inherited); the primitive `applyAsDouble` path works; `TNormLaws.verify`
+accepts a hand-reified t-norm and rejects a broken one as a plain
+`AssertionError` in a test framework it was never told about. So the planned
+Clojure sugar module deleted itself — what ships instead is that suite, wired
+into `./gradlew check`, so every future build re-proves §9 before it can
+publish (CLAUDE.md §23). `fuzzy-bom` aligns the six published modules for Maven
+and Gradle consumers; deps.edn consumers pin per-artifact versions, since
+tools.deps cannot import a BOM.
+
 What remains of the twelve-module graph — `fuzzy-aggregate`, `fuzzy-linguistic`,
-and the rest — is later mathematics awaiting sources this project can actually
-consult (CLAUDE.md §18.2's rule).
+`fuzzy-possibility`, `fuzzy-intuitionistic` — is later mathematics awaiting
+sources this project can actually consult (CLAUDE.md §18.2's rule).
 The graph and the reasoning behind each cut are in [CLAUDE.md](CLAUDE.md) §10.
 
 ## License

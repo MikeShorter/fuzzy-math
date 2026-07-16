@@ -48,42 +48,8 @@ mavenPublishing {
     // group and version come from the root gradle.properties, which Gradle
     // applies to every project — no allprojects block required.
 
-    pom {
-        name.set(project.name)
-        // Each module sets `description` in its own build.gradle.kts; Central
-        // rejects a POM without one, so fail loudly here rather than at upload.
-        description.set(
-            provider {
-                project.description
-                    ?: throw GradleException(
-                        "Module '${project.name}' must set `description` in its " +
-                            "build.gradle.kts — Maven Central rejects a POM without one.",
-                    )
-            },
-        )
-        inceptionYear.set("2026")
-        url.set("https://github.com/MikeShorter/fuzzy-math")
-
-        licenses {
-            license {
-                name.set("The Apache License, Version 2.0")
-                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                distribution.set("repo")
-            }
-        }
-
-        developers {
-            developer {
-                id.set("MikeShorter")
-                name.set("Michael E Shorter")
-                url.set("https://eusrbin.dk")
-            }
-        }
-
-        scm {
-            url.set("https://github.com/MikeShorter/fuzzy-math")
-            connection.set("scm:git:https://github.com/MikeShorter/fuzzy-math.git")
-            developerConnection.set("scm:git:ssh://git@github.com/MikeShorter/fuzzy-math.git")
-        }
-    }
+    // The POM itself lives in FuzzyPom.kt, shared with
+    // fuzzy.platform-publishing-conventions (§23.6) — one statement of the
+    // §14.3-sensitive fields, two conventions that publish them.
+    fuzzyPom(project)
 }

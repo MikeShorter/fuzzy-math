@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 // Baseline Kotlin/JVM conventions for every fuzzy-* module.
@@ -51,6 +52,16 @@ kotlin {
         // toolchain above. CLAUDE.md §14.1 (ratified 2026-07-15): compile on 24,
         // emit 17, so both live LTS releases can consume this.
         jvmTarget.set(JvmTarget.fromTarget(catalogVersion("jvm-target")))
+
+        // Interface default methods are REAL JVM default methods, plus the
+        // DefaultImpls compatibility bridges — pinned rather than inherited
+        // from a compiler default nobody chose. CLAUDE.md §23.2: §9's central
+        // promise ("reify one method, inherit the lot") is a fact about this
+        // flag, the fuzzy-clj conformance suite validates exactly this
+        // bytecode, and like jvm-target (§14.1) it moves only via a decision
+        // in the record. NO_COMPATIBILITY was rejected there: it would swap
+        // tested bytecode for untested bytecode to save bytes nobody counted.
+        jvmDefault.set(JvmDefaultMode.ENABLE)
     }
 }
 

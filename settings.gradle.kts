@@ -54,6 +54,13 @@ include("fuzzy-number")
 include("fuzzy-relation")
 
 // §22: defuzzification — §11a's sanctioned seam to the control layer above,
-// and the one module in §10's tail that needs no source we lack (§18.2's rule
-// amputates the rest until sources arrive).
+// and the one MATHEMATICAL module in §10's tail that needs no source we lack
+// (§18.2's rule amputates the rest until sources arrive; §23.1 corrected the
+// original phrasing here, which claimed the whole tail was gated).
 include("fuzzy-defuzz")
+
+// §23: the first non-Kotlin consumer. fuzzy-bom is the published platform;
+// fuzzy-clj is UNPUBLISHED — the §9 conformance harness, wired into `check`,
+// after §23.4 found zero adapters needed and the sugar module deleted itself.
+include("fuzzy-bom")
+include("fuzzy-clj")
