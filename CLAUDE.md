@@ -6,6 +6,540 @@ file is wrong and should be fixed deliberately, not silently.
 
 ---
 
+## Updated: 2026-07-16 — fuzzy-number design
+
+### 20. Fuzzy numbers — **ALL RATIFIED 2026-07-16**
+
+This slice exists to test §15.3, which is an unproven claim: nothing in
+`fuzzy-set` overrides anything. Designing `TriangularNumber` against it produced
+a sharper answer than "it works" or "it doesn't".
+
+#### 20.1 §15.3 needs exactly one qualifier — and it predicts §18.3
+
+**The headline.** §15.3 says closed forms are *"overrides on the function"*, a
+`TriangularNumber` overriding `height` *"with the analytic answer"*. Taking every
+analysis member of `MembershipFn` in turn, §15.3 splits **two** ways — an earlier
+draft said three, and the correction is the finding.
+
+**(a) It works — the closed form answers the same question.**
+
+| override | `TriangularNumber(l, m, r)` |
+|---|---|
+| `height(over)` | `1.0` — normal by construction |
+| `isNormal(over)` | `true` — follows `height` |
+| `findNonConvexity(over)` | **`Verdict.Proven`** — see §20.5 |
+| `findNonStrongConvexity(over)` | `Verdict.Refuted`, with an analytic witness: any two points outside `(l, r)` have `f = 0`, and `0 > 0` is false |
+
+Each ignores the domain entirely, exactly as §15.3 promised.
+
+**An earlier draft listed `maximalGradeSet` → `[m]` and `core` → `[m]` here. Both
+are wrong, and §20.7 is why:** those return *elements of the domain*, and `m` need
+not be one. An override handing back a point the domain does not contain is
+answering a different question — group (b), not (a).
+
+**(b) The return type cannot carry it — which is not a failure. It is a
+detection.**
+
+`support(over): List<X>` and `alphaCut(over, α): List<X>` cannot express a
+triangle's `Γ_α = [l + α(m−l), r − α(r−m)]`, an uncountable interval.
+`sigmaCount(over): Double` *can* carry a number, but `(r−l)/2` is the integral,
+not `Σ_x f(x)` over the domain — a σ-count over 1024 grid points is ~256× one over
+4, and neither is `∫f dx`.
+
+Those look like two different problems and are one:
+
+- `alphaCut` asks *"which grid points are in `Γ_α`"*; `alphaCutInterval` asks
+  *"what **is** `Γ_α`"*. **Two questions.**
+- `sigmaCount` asks *"`Σ` over this domain"*; the integral asks *"`∫f dx`"*.
+  **Two questions.**
+
+Neither is §15.3 failing. **Both are §15.3 detecting that one name is covering
+two operations** — and in both cases the resolution is §18.3's: name both, put
+each where it belongs. §20.2 does it for `alphaCut`; sending the integral to
+`fuzzy-defuzz` (§10 — *"centroid… `∫x·f(x)dx / ∫f(x)dx`"*) does it for
+`sigmaCount`.
+
+**Decided — §15.3, narrowed by one qualifier:**
+
+> **Closed forms are overrides on the function, where the operation means the
+> same thing.** Where the return type cannot express the closed form, that is not
+> a barrier — **it is the signal that you have two operations, not one operation
+> at two fidelities.** Name both (§18.3).
+
+One qualifier, not two, and it now *predicts* §18.3 rather than sitting beside
+it. **That the same pattern has now surfaced three times independently — `core`
+vs `maximalGradeSet` (§18.3), `alphaCut` vs `alphaCutInterval` (§20.2),
+`sigmaCount` vs the integral — is the sign it is structural rather than a series
+of coincidences.** A return type that cannot hold the exact answer is a
+name-collision detector.
+
+#### 20.7 The agreement law must be **one-directional** — and 2a already said so
+
+**Found by building §20.1(a)'s table, and it changes shipped code.**
+
+`MembershipFnLaws` asserts `fn.height(over) == generic.height(over)` — the
+override agrees with the fold. Give it a `TriangularNumber(-0.5, 0.5, 1.5)` over
+a grid of `{0.0, 1.0}` — a peak that is *off-grid*:
+
+    generic fold  height(over) = 0.5
+    override      height(over) = 1.0     ← the true Sup, and correct
+    the law asserts equality             → FAILS, while the override is right
+
+So the law that exists to make §15.3 true would reject §15.3's own worked example.
+
+**The discriminator was already written into 2a's KDocs**, which is the reason to
+trust it rather than invent one:
+
+| operation | its own KDoc says | verdict |
+|---|---|---|
+| `height` | *"Over a `Sampled` domain this is a **lower bound** on the true supremum"* | **one question, two fidelities** → override valid |
+| `sigmaCount` | *"a grid sum, **not an integral**: it scales with the point count"* | **two questions** → §20.1(b), name both |
+
+`height` was *always* documented as approximating a target it could not reach. An
+override that reaches it answers the same question, better. `sigmaCount` was
+always documented as being about the grid itself.
+
+**Decided (proposed): where §15.3's override is valid, the law is not equality —
+it is that the override may not be *worse* than the fold.**
+
+> **`height`: `override ≥ fold`.** The fold *found* an `x` with `f(x) = 0.5`, so
+> the true Sup is at least `0.5` — that finding is **absolute**. An override
+> claiming `0.3` is lying and is caught. An override claiming `1.0` may simply
+> know more.
+
+**This is the same one-directional shape for the third time**, and at this point
+it is plainly structural rather than coincidence:
+
+- §16.4 — a **witness** refutes absolutely; the absence of one proves nothing.
+- §19.7(2) — `Proven` ⟹ the generic search finds no witness; the *witness* is the
+  absolute half.
+- §20.7 — the fold's `height` is a **lower bound it achieved at a real point**;
+  that half is absolute, the other is not.
+
+In each, the sampled search's **positive findings are facts** and its **negative
+findings are not**. A law may lean on the first and never on the second. That is
+§7's ethic in one sentence, and it keeps arriving from different directions.
+
+**Consequence for `MembershipFnLaws` (shipped):** its `height` and `sigmaCount`
+checks must change — `height` to `≥`, `sigmaCount` to *not overridable* (§20.1(b),
+so its check becomes vacuous and should be dropped rather than weakened). The
+`support`/`core`/`maximalGradeSet`/`alphaCut` checks stay as equality **because
+§20.1(b) forbids overriding them at all** — there, equality is exactly the right
+assertion, and it is what stops someone trying.
+
+**Tighten it with `isExhaustive` — the tightening is the half that catches bugs.**
+
+An earlier draft proposed keeping `≥` uniformly, on the grounds that one law sound
+everywhere beats two each sound somewhere. That is wrong, and giving up the
+tightening gives up the only part with teeth. Over an **`Enumerable`** the fold
+visits *every* element, so the fold **is** the Sup over that domain — not a lower
+bound on anything. Equality is sound there, and it is exactly what catches an
+override ignoring a question-defining domain.
+
+    override ≥ fold                        always
+    override == fold   when over.isExhaustive
+
+That is `Domain.isExhaustive`'s entire job (§16.4), doing it once more.
+
+**And note what no law can catch**, which is why §20.8 matters more than this
+section: over a **`Sampled`** window the fold is genuinely a lower bound, so
+`override ≥ fold` passes for `TriangularNumber.height(Sampled(2, 3)) = 1.0` — an
+answer that is simply wrong. **No law recovers that.** The override has to be
+right. §20.7 fixes a symptom; §20.8 fixes the cause.
+
+#### 20.8 Is the universe **fixed by the operation** or **supplied by the caller**?
+
+**The rule §15.3 needed and did not have, and the reason §20.7 alone is not
+enough.**
+
+§20.7's law is sound and lets the real bug through:
+
+    TriangularNumber(-0.5, 0.5, 1.5).height(Sampled(2, 3, 1024))
+      the triangle is identically ZERO on [2,3] — its support is (-0.5, 1.5)
+      fold      → 0.0     ← correct: the Sup over [2,3] IS 0
+      override  → 1.0     ← "ignores the domain entirely", per §15.3
+      §20.7:  1.0 ≥ 0.0   → PASSES
+
+So the defect is upstream. **§15.3's example is wrong, and it inherited that from
+§3's `Parametric`** — the very concept §15.3 was deleting.
+
+**The disanalogy §15.3 missed.** It said "reuse `TNorm.residuum`'s pattern"
+without noticing where that pattern's authority comes from: **`residuum`'s search
+space is fixed; `height`'s is a parameter.** `TNorm.residuum` bisects `[0,1]` —
+always, by the definition of a t-norm. Its override can ignore nothing, because
+there is nothing to ignore. `height` searches whatever you hand it, and
+`Sampled(-1,2)` and `Sampled(2,3)` are **different questions with different
+answers**. An override that ignores the argument answers neither.
+
+**The rule:**
+
+> **Is the universe fixed by the operation, or supplied by the caller?**
+
+| | universe | override |
+|---|---|---|
+| `findNonConvexity` | **ℝ — fixed.** `over` only supplies candidate endpoints `x₁, x₂` | valid; may ignore the domain |
+| `findNonStrongConvexity` | ℝ — fixed | valid; may ignore the domain |
+| `height` | **supplied** | **must read the domain** |
+| `isNormal` | supplied (derives from `height`) | must read it |
+| `sigmaCount`, `support`, `core`, `maximalGradeSet`, `alphaCut` | supplied | §20.1(b) — two questions; name both |
+
+**`findNonConvexity → Proven` survives untouched.** Convexity is a property of `f`
+on ℝ; the grid only proposes `x₁` and `x₂`. That is *why* `Proven` is honest there
+and nowhere else in this group — §20.5's dividend is real, and now it has a reason
+rather than a coincidence.
+
+**The fix is not "do not override". It is "read the carrier, do not fold over
+it."** `Domain` is **sealed** (§15.4), so an override can dispatch on it:
+
+- **`Sampled(lo, hi)`** → the analytic Sup over `[lo, hi]`, in **O(1)**: `1.0` if
+  `m ∈ [lo, hi]`; `0.0` if the window misses `(l, r)` entirely; otherwise `f` at
+  the nearer endpoint, by unimodality.
+- **`Enumerable`** → **fall back to the fold.** No analytic shortcut exists; there
+  the universe *is* the element set, and folding it is not an approximation of
+  anything.
+
+**Verified — and the override still wins on both counts:**
+
+    window            analytic   fold(1024 pts)
+    [-1.0,  2.0]      1.000000     0.998534     ← analytic is MORE ACCURATE: 0.5 is not a grid point
+    [ 2.0,  3.0]      0.000000     0.000000     ← the case that broke "ignores the domain"
+    [ 1.0,  2.0]      0.500000     0.500000
+    [-3.0, -2.0]      0.000000     0.000000
+
+O(1) instead of O(n), and **exact where the grid only approximates** — `[-1, 2]`
+is §15.3's promise delivered. It just reads `(lo, hi)` instead of pretending they
+are not there.
+
+**This is the fourth arrival at the same shape**, and it is worth saying plainly:
+`core`/`maximalGradeSet` (§18.3), `alphaCut`/`alphaCutInterval` (§20.2),
+`sigmaCount`/integral (§20.1), and now `height`-over-a-window vs `height`-over-ℝ.
+Every one is a name or a signature covering **two questions**, and every one was
+found by trying to implement it rather than by re-reading it.
+
+#### 20.9 The `isExhaustive` guard belongs to **anything derived from `height`**
+
+**Found by running §20.7's own law against §20.8's own type**, which is the third
+time this slice that building the thing said something re-reading it did not.
+
+§20.7 guards `height`: `override ≥ fold` always, `override == fold` when
+`over.isExhaustive`. That is stated as a fact about `height`. It is not. It is a
+fact about **every operation defined in terms of `height`**, and the library has
+exactly one:
+
+    maximalGradeSet(over) = over.filter { apply(x) >= height(over) }
+                                                    ^^^^^^^^^^^^^^
+                                                    the VIRTUAL height
+
+So overriding `height` silently changes `maximalGradeSet` — **in a type that does
+not override `maximalGradeSet` and is forbidden by §20.1(b) from trying.** An
+override reached through a default body it never mentions.
+
+**The disagreement it produces is correct, and §18.3 ratified it in advance:**
+
+> *"Over a `Sampled` they can differ — the true supremum may be approached between
+> grid points and attained nowhere on the grid, which is [Sampled]'s standing
+> caveat, not a new one."*
+
+`T(-1, 0.5, 2)` over 512 points has an analytic `height` of `1.0` that **no grid
+point attains**, so its `maximalGradeSet` is legitimately **empty** while the
+fold's is `{0.499…}`. Both right; different questions; §18.3 said so.
+
+**Decided: `maximalGradeSet`'s agreement law takes `height`'s guard.** The line is
+mechanical, and worth stating because it predicts rather than describes:
+
+| member | body | equality sound? |
+|---|---|---|
+| `support`, `core`, `alphaCut`, `strongAlphaCut` | filters on `f` **alone** | **yes, over any domain** — a `height` override cannot reach them |
+| `maximalGradeSet` | filters on `f` **against `height(over)`** | **only when `isExhaustive`** |
+| `isNormal` | `height(over) == 1` | derived; no standalone law |
+
+**The rule:** *a law's soundness is inherited through the default bodies it calls,
+not declared at the member it names.* §20.7 guarded the member it was looking at
+and missed the one downstream of it — which is the same shape as §15.3 guarding
+`residuum`'s pattern and missing that `height`'s universe was a parameter (§20.8).
+Both times, the defect was one call-edge away from where the thinking stopped.
+
+#### 20.10 The degenerate member of a family is where clause order stops being cosmetic
+
+Two shipped bugs, same shape, caught by §20.9's normality law within minutes of it
+existing. Recorded because the *class* is predictable and the instances were not.
+
+    TriangularNumber.crisp(1.0)          = T(1,1,1)     f(1.0) = 0.0     ← wrong
+    TrapezoidalNumber.crispInterval(-1,1) = Tz(-1,-1,1,1) f(-1.0) = 0.0  ← wrong
+
+Both were written **feet-first**:
+
+    x <= l || x >= r -> 0.0        // fires first
+    x == m -> 1.0                  // unreachable when l == m == r
+
+For a proper triangle every clause is fine. For `T(m, m, m)` **the feet are the
+peak**, `m <= m` is true, and the degenerate member of the family evaluates to
+**zero everywhere including at its own peak**. Fixed by testing the peak/plateau
+first, which is correct for both the general and the degenerate case.
+
+**Why this is worth a section rather than a commit message:** `crisp` and
+`crispInterval` are the *first* constructors a reader reaches for — "does this
+library do the obvious thing when nothing is fuzzy?" — and both answered no. The
+general case was right and the boundary of the family was not, which is §14.6's
+lesson arriving at ordinary control flow rather than at arithmetic: **the
+reasoning was sound about the shape and wrong about its degenerate limit, and only
+running it said so.**
+
+#### 20.2 `Interval`, and what a fuzzy number actually is
+
+§20.1(b) needs an answer, and the module needs the same thing for a different
+reason, so one type serves both.
+
+**A fuzzy number is a fuzzy set whose α-cuts are closed bounded intervals** —
+i.e. normal + convex, with bounded `Γ_α` for `α ∈ (0,1]`. That is not a
+convenience; it is the definition, and it is *why* α-cut arithmetic works.
+
+**Proposed hierarchy:**
+
+    DoubleMembershipFn                      (fuzzy-set, §9 — the primitive path)
+      └── FuzzyNumber
+            alphaCutInterval(α ∈ (0,1]): Interval    ← the defining operation, exact, no Domain
+            + §20.1(a)'s overrides
+            ├── TriangularNumber(l, m, r)
+            ├── TrapezoidalNumber(a, b, c, d)
+            ├── GaussianNumber(mean, sigma)
+            └── AlphaCutNumber(cuts)                 ← what arithmetic returns (§20.3)
+
+`Interval` needs an **order** on X, which `Domain<X>` does not supply — the same
+shape of constraint as §15.5's vector space, and the same resolution: it lives on
+the ℝ tier. `alphaCutInterval` is restricted to `α ∈ (0,1]`, matching eq. (24)'s
+own restriction, and for a reason: **`Γ_0` is all of ℝ for every fuzzy set**,
+since every degree is `≥ 0`. Zadeh's `(0,1]` is not fastidiousness.
+
+This does **not** change 2a's API. `alphaCut(over, α): List<Double>` stays as the
+grid sample it always was; `alphaCutInterval(α)` is new, exact, and needs no
+domain. Two names, two questions — §18.3's move, and §20.1's rule saying in
+advance that it would be needed.
+
+##### (i) `AlphaCutNumber` carries a **function**, not a collection
+
+`AlphaCutNumber(cuts: (Double) -> Interval)`. **α is continuous**: there is no map
+over uncountably many levels, and a `Map<Double, Interval>` or `List<AlphaLevel>`
+would quietly re-introduce the sampling §20.3 exists to avoid. §20.3's phrase
+"α-cut map" reads as *function*; the constructor signature is where that gets
+silently wrong, so it is stated here.
+
+(Contrast `MembershipFn.decompose`, which *does* return a `List<AlphaLevel>` —
+correctly, because it is explicitly a **sample** at named levels, and §18.2
+already records that its round trip is exact only at the levels cut.)
+
+##### (ii) Nestedness is an unverifiable precondition — §19.6, relocated
+
+`AlphaCutNumber` is a fuzzy number **only if its cuts are nested**
+(`α₁ < α₂ ⟹ Γ_{α₂} ⊆ Γ_{α₁}`), and §20.3's `f(x) = sup{α | x ∈ Γ_α}` bisection
+**requires that monotonicity** — hand it non-nested cuts and it returns a
+plausible number computed from a meaningless search.
+
+It cannot be checked at construction: uncountably many α, so only sampled.
+
+**But it is not §19.6's case, and the difference decides the API.** Boundedness
+was unsamplable in *both* directions. Nestedness is refutable in one: a witness
+`(α₁ < α₂, x ∈ Γ_{α₂} \ Γ_{α₁})` **disproves it absolutely** (§16.4 — refutation
+is exact even where proof is not). That makes it convexity-shaped, not
+boundedness-shaped, and convexity-shaped things get a `Verdict` and a law suite.
+
+**Nguyen's theorem** — which §20.6 correctly marks not-on-hand — is exactly what
+says arithmetic *preserves* nestedness, so **anything `×`, `+` or `−` produces is
+safe by construction**. The exposure is confined to hand-built instances.
+
+**Decided (proposed): the constructor is public, the precondition is documented
+and unchecked, and `fuzzy-laws` samples it.** The precedent is exact and already
+shipped — `TConorms.dualOf`:
+
+> *"Involutivity of `negation` is required and **not checked** here — it is a
+> property of a function, not of a value, so it cannot be checked at
+> construction, only sampled. That is exactly what `DeMorganLaws` is for."*
+
+Same sentence, different property. §4's "construction validates" governs
+*values* (a `γ`, a `λ`); a function's behaviour over an uncountable domain was
+never in its scope.
+
+**Rejected: internal-only, constructible solely by arithmetic.** Safe, and it
+costs more than it looks. `AlphaCutNumber`'s actual service is *"give me α-cuts
+and I will derive your membership function"* — a user implementing `FuzzyNumber`
+by hand must supply **both** `applyAsDouble` and `alphaCutInterval`, and keep them
+consistent. That is the very duplication this type removes. Closing it would
+protect users from a precondition by denying them the tool that has it.
+
+##### (iii) The agreement law **will** fail at the boundary — predicted, not discovered
+
+`alphaCutInterval(α)` for a Gaussian is `m ± σ√(2 ln(1/α))`. Evaluating `f` at
+that endpoint round-trips through `sqrt`/`ln`/`exp` and lands at `α ± ε`. So a
+grid point sitting *exactly* on the boundary is inside the interval and outside
+the α-cut, and the law fails while **both sides are correct**.
+
+**Verified, and it is not even systematic:**
+
+    α = 0.9    endpoint 0.45904360502642089    f = 0.89999999999999991    f ≥ α ?  FALSE
+    α = 0.5    ...                             f = 0.50000000000000000    f ≥ α ?  TRUE
+    α = 0.25   ...                             f = 0.25000000000000006    f ≥ α ?  TRUE
+    α = 0.01   endpoint 3.03485425877029291    f = 0.01000000000000000    f ≥ α ?  FALSE
+
+This is **§14.6(a) exactly**: an exactness claim over-applied to an operation that
+is *arithmetic* rather than *selection*. `alphaCut`'s comparison `f(x) ≥ α` is
+selection and is exact; `alphaCutInterval`'s endpoint is computed and is not.
+
+**Decided (proposed):** state the law on grid points **strictly interior** to the
+interval, and give the boundary itself a `Tolerance` from `fuzzy-laws` (§8 — the
+one place tolerances live). Not `EXACT`: the endpoint is arithmetic.
+
+Predicted here rather than met as a bug, because the same mistake has now been
+made three times (§14.6, §19.7's Gaussian, this) and the pattern is legible:
+**wherever an exact comparison meets a computed value, the exactness belongs to
+the comparison and not to the value.**
+
+#### 20.3 `×` — ship the exact answer, not the triangle
+
+**Verified, not assumed.** `T(1,2,3) × T(1,2,3)`: the α-cut of `T(1,2,3)` is
+`[1+α, 3−α]`, so the product's is `[(1+α)², (3−α)²]` — **quadratic in α**, where
+a triangle's is linear. It is not a triangle.
+
+    α       exact product      the triangle T(1,4,9)     error
+    0.0    [1.000, 9.000]        [1.000, 9.000]          0.000
+    0.25   [1.562, 7.562]        [1.750, 7.750]          0.188
+    0.5    [2.250, 6.250]        [2.500, 6.500]          0.250
+    0.75   [3.062, 5.062]        [3.250, 5.250]          0.188
+    1.0    [4.000, 4.000]        [4.000, 4.000]          0.000
+
+**Note where the error is: nowhere you would look.** The approximation is exact
+at `α = 0` and `α = 1` — the support and the peak, the two things anyone spot-
+checks — and wrong by 0.25 through the entire interior. That is why every
+mainstream library ships it and why nobody notices.
+
+**The decisive fact: the exact product is still a fuzzy number.** Its α-cuts are
+nested (verified over 101 levels), so it is exactly representable *by its α-cut
+map*, and its membership function follows from eq. (24) by the same near-tautology
+§18.2 recorded: `f(x) = sup{α | x ∈ Γ_α}`, recoverable by bisection on α since the
+cuts are monotone.
+
+So the choice is not "approximate or refuse". It is "approximate or be right".
+
+**Recommendation: option 2.** `times` returns a `FuzzyNumber` — an
+`AlphaCutNumber` carrying the exact α-cut map. It is exact, it **composes** (the
+result is a `FuzzyNumber` and can be multiplied again, which a triangle
+approximation cannot do without compounding its error), and it is §7's thesis
+applied to the one place the whole field looks away. §19.3 is the precedent: we
+shipped the separation *theorem* and said what its preconditions were, rather
+than shipping eq. (31)'s uncomputable definition or a plausible lie.
+
+Cost: evaluating `f(x)` on a product costs a bisection over α (~50 evaluations of
+the cut map) instead of an arithmetic expression. Real, and the honest trade.
+
+**And here the exact answer is not merely representable — it is writable.**
+Inverting both branches of `Γ_α = [(1+α)², (3−α)²]` (`α ≤ √y − 1` and
+`α ≤ 3 − √y`):
+
+    μ(y) = min(√y − 1, 3 − √y)      on [1, 9]
+
+**Verified: it round-trips the exact α-cut at all 101 sampled levels.**
+`μ(4) = 1`, `μ(1) = μ(9) = 0`, `μ(2.25) = 0.5` — against the triangle's
+`0.4167` at the same point, and the triangle's own `μ(2.5) = 0.5`. Not a
+triangle; still a fuzzy number; and closed-form.
+
+Symbolic inversion in general is out of scope, so `AlphaCutNumber` stays the
+representation. But this settles that it **represents something real** rather
+than papering over a hole — the bisection is recovering a function that exists,
+not manufacturing one.
+
+**Rejected — (1) a "loudly typed" approximating triangle.** Better than silence,
+but it still answers the wrong question, and a type that says
+`ApproximateTriangle` invites exactly the reasoning §7 exists to prevent: *"it is
+labelled, so it must be fine."* If an approximation is wanted it should be an
+explicit, named, lossy projection **of** the exact answer — `approximateAsTriangle()`
+on the result — not the thing `×` hands you by default.
+
+**Rejected — (3) no `×`.** Fuzzy arithmetic without multiplication is not fuzzy
+arithmetic, and the exact answer is available.
+
+#### 20.4 `X ⊖ X` is not crisp zero — and a reader will meet it
+
+**Verified.** For `X = T(1,2,3)`:
+
+    α = 0.0   X_α = [1.00, 3.00]   X_α − X_α = [−2.00, +2.00]
+    α = 0.5   X_α = [1.50, 2.50]   X_α − X_α = [−1.00, +1.00]
+    α = 1.0   X_α = [2.00, 2.00]   X_α − X_α = [ 0.00,  0.00]
+
+`X ⊖ X` is a fuzzy number spread symmetrically about zero, width `2(r−l)` at the
+support. Only at `α = 1` is it `{0}`. α-cut interval arithmetic **has no
+cancellation** — the same trap ordinary interval arithmetic has, for the same
+reason: the two `X`s are treated as independent quantities that merely happen to
+share a range.
+
+This is not a bug and it is the first thing a user will report as one.
+**Attributed/derived, per §18.2** — Zadeh 1965 has no fuzzy arithmetic — and it
+goes in `FuzzyNumber.minus`'s KDoc, where a reader meets it, as well as here.
+
+#### 20.5 The dividend: `Proven` from a closed-form proof
+
+§19.1 gave `Verdict` three values so that an **exhaustive enumeration** could
+report `Proven` where a grid could only report `NotRefuted`. §15.3 gave functions
+the right to override analysis with closed forms. Neither knew about the other.
+
+A `TriangularNumber` is convex **by construction** — its α-cuts are intervals by
+similar triangles, no search required. So it can override `findNonConvexity` and
+return `Verdict.Proven` **honestly**, from an analytic proof, over *any* domain
+including a `Sampled` one — the case §15.6 exists to forbid guessing about.
+
+`Proven` turns out to mean *"a proof exists"*, not *"the domain was exhaustive"*.
+Exhaustive enumeration was only ever **one way** to have one. That the type
+already said the right thing, for a reason nobody had in mind, is the kind of
+evidence §12 was after: two decisions made for unrelated reasons paying off
+together.
+
+**Caveat, and the fix is not the obvious one.** `ConvexityLaws` currently asserts
+*"a sampled ∀ is never `Proven`"* (§19.7). A `TriangularNumber` over a `Sampled`
+domain fails it today, so the law must change — but **not** to *"never `Proven`
+unless the subject supplied a proof"*. **That is unverifiable.** A suite cannot
+see whether an override has a proof; it sees a `Proven` come back. Such a law
+could only be *believed*, which is precisely what §7 exists not to do.
+
+**Decided (proposed): the checkable law is the cross-check §19.7(2) already
+ships.**
+
+> **`Proven` ⟹ the generic sampled search finds no witness.**
+
+A witness is absolute (§16.4). So if a `TriangularNumber` claims `Proven` and a
+grid produces a counterexample, the override is lying — and *that* the suite
+catches, without ever asking how the claim was reached.
+
+**This is slice 1's pattern, exactly.** `ResiduumLaws` never asks how a residuum
+was computed; it asserts the adjunction holds whatever produced it — closed form,
+bisection, or luck. **Do not test the mechanism; test that the closed form agrees
+with the fold it replaces.** That is also what `MembershipFnLaws` does, and what
+§15.3 needs in order to be true rather than asserted.
+
+§19.7's original claim survives intact where it belongs: as a **test of the
+default**, run against a black-box lambda that overrides nothing. That is a
+test-of-the-test, not a law — the same category as `StandardLaws` failing for
+Product.
+
+#### 20.6 Provenance: this module is `Attributed:` almost throughout
+
+Checked before writing, per §17.1's rule. **Bergmann 2008 contains zero
+occurrences of** "fuzzy number", "LR representation", "α-cut", "Dubois", "Prade",
+"interval arithmetic", or "extension principle". §17.1 is about the *shapes* of
+membership functions in a linguistic argument — Black's curves, Goguen's
+`1/(1+x)` — not fuzzy numbers as an arithmetic type. **Zadeh 1965 has no fuzzy
+arithmetic at all.**
+
+So, honestly:
+- **`Source:`** — only where it reduces to what we have read: `Γ_α` is eq. **(24)**
+  (§V p.347); `f(x) = sup{α | x ∈ Γ_α}` is derivable from it (§18.2); convexity is
+  eq. **(25)**; Zadeh's `(0,1]` restriction on α is his.
+- **`Attributed:`** — the fuzzy-number concept, LR representation (Dubois & Prade
+  1978, **not on hand**), α-cut interval arithmetic, and the theorem that makes it
+  valid for continuous monotone operations (Nguyen 1978, **not on hand**).
+
+§17.5's rule stands: an unconsultable source cannot arbitrate, so none is cited as
+though it could. Nothing here is claimed as verified that is not.
+
+---
+
 ## Updated: 2026-07-15 — Slice 2b design
 
 ### 19. Zadeh §V — **ALL RATIFIED 2026-07-15**
@@ -826,7 +1360,18 @@ question a `Domain` exists to answer.
 `Domain` for, and every `Sup` operation is then unreachable — exactly §3's
 requirement, with one fewer concept.
 
-#### 15.3 `Parametric` was a category error. Closed forms are overrides.
+#### 15.3 `Parametric` was a category error. Closed forms are overrides. — **EXAMPLE SUPERSEDED by §20.8**
+
+> **Read §20.8 before this section.** The *decision* stands and has been proven by
+> `fuzzy-number`: closed forms are overrides on the function, not `Domain` cases.
+> The **worked example below is wrong.** *"A `TriangularNumber` overrides it with
+> the analytic answer and **ignores the domain entirely**"* — an override that
+> ignores the domain answers the wrong question, because `height`'s universe is
+> **supplied by the caller**, not fixed by the operation. `TriangularNumber(-0.5,
+> 0.5, 1.5).height(Sampled(2, 3))` is `0.0`; the triangle is identically zero
+> there. This section inherited "ignores the domain" from §3's `Parametric`, which
+> is exactly the concept §15.3 was deleting. The correct rule, and the correct
+> pattern — *read the carrier, do not fold over it* — is §20.8.
 
 `Enumerable` and `Sampled` describe **the carrier**: what X is, and how to fold
 over it. `Parametric` described **the membership function** — "this is a
@@ -1482,9 +2027,18 @@ Acyclic. Each module independently justifiable.
                            users want this and no set theory)
 
     fuzzy-laws           publishable property suites + per-algebra tolerances
-                         → fuzzy-algebra, fuzzy-set (test-scope consumable)
-                           [fuzzy-set edge added in slice 2a — §16.6. The suites
-                            follow the modules they validate; still acyclic.]
+                         → fuzzy-algebra, fuzzy-set, fuzzy-number
+                           (test-scope consumable)
+                           [fuzzy-set edge added in slice 2a — §16.6; fuzzy-number
+                            in slice 3 — §20. The suites follow the modules they
+                            validate; still acyclic.
+                            Note the shape: fuzzy-laws accretes an edge to every
+                            module it publishes laws for, so it will end up
+                            depending on most of the graph. That is the price of
+                            §7's decision that the laws are a CONSUMABLE artifact
+                            rather than internal tests. It is paid in test scope
+                            only. Recorded here rather than rediscovered at module
+                            nine.]
 
     fuzzy-set            membership fns, pointwise ops, hedges, Domain seam,
                          α-cuts, decomposition, support/core/height,
@@ -1500,9 +2054,11 @@ Acyclic. Each module independently justifiable.
                          extension, CRI
                          → fuzzy-set
 
-    fuzzy-number         LR / triangular / trapezoidal / Gaussian,
-                         α-cut interval arithmetic
+    fuzzy-number         FuzzyNumber, Interval, triangular / trapezoidal /
+                         Gaussian / AlphaCutNumber, exact α-cut arithmetic
                          → fuzzy-set
+                           [LR representation not shipped — §20.6: Dubois & Prade
+                            1978 is not on hand, and the concept needs it.]
 
     fuzzy-aggregate      OWA, weighted + generalized means
                          → fuzzy-algebra ONLY (aggregation is over *degrees*,

@@ -39,7 +39,11 @@ rootProject.name = "fuzzy-math"
 include("fuzzy-algebra")
 include("fuzzy-laws")
 
-// Slice 2a (§15.7): membership functions, the pointwise algebra, hedges, the
-// Domain seam, and domain-generic analysis. Zadeh §V — convexity, boundedness,
-// shadow, separation — is slice 2b and is ℝ¹-bound (§15.5).
+// Slices 2a/2b (§15.7): membership functions, the pointwise algebra, hedges, the
+// Domain seam, domain-generic analysis, and Zadeh §V (ℝ¹-bound, §15.5).
 include("fuzzy-set")
+
+// §20: fuzzy numbers. Not here because §10 lists it next — because §15.3 was an
+// unproven claim until something overrode something. It is proven, and corrected
+// (§20.8), by this module.
+include("fuzzy-number")

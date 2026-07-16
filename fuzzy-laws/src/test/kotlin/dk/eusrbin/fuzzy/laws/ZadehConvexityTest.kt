@@ -13,6 +13,7 @@ import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.max
@@ -259,18 +260,43 @@ class ZadehConvexityTest : FunSpec({
             report.failures.map { it.law }.any { it.contains("may not deny a witness") } shouldBe true
         }
 
-        test("a sampled ∀ must never come back Proven") {
-            val overclaimer = object : DoubleMembershipFn {
-                override fun applyAsDouble(x: Double): Double = gaussian.applyAsDouble(x)
+        // CLAUDE.md §20.5 — this test used to assert that ANY override returning
+        // Proven over a grid was caught, using a Gaussian as the subject. It was
+        // wrong twice over, and `fuzzy-number` is what exposed it.
+        //
+        // The Gaussian IS convex. So `Verdict.Proven()` from it was never a lie —
+        // it was an unproven truth, and a suite cannot tell those apart. It sees a
+        // Proven come back, not how it was reached. TriangularNumber reaches one
+        // honestly, by construction, and the old law would have rejected it.
+        //
+        // What survives is the claim about the DEFAULT, which is where §19.7 meant
+        // it: a black-box lambda over a grid saw 1024 points out of uncountably
+        // many, and must not say Proven whatever the truth is.
+        test("the generic default never claims Proven over a grid (§19.7, narrowed by §20.5)") {
+            // A lambda overrides nothing, so this exercises the default body — and
+            // the subject is genuinely convex, which is the point: being right is
+            // not the same as having looked.
+            val blackBox = DoubleMembershipFn { x -> gaussian.applyAsDouble(x) }
+            withClue("the default must report what it actually knows") {
+                blackBox.findNonConvexity(line).shouldBeInstanceOf<Verdict.NotRefuted<ConvexityWitness>>()
+            }
+            ConvexityLaws.verify(blackBox, line)
+        }
+
+        // And the checkable half, which needs no access to the override's reasoning:
+        // a witness is absolute (§16.4), so Proven against one is a lie by anyone.
+        test("an override claiming Proven where the fold found a witness is caught") {
+            val liar = object : DoubleMembershipFn {
+                override fun applyAsDouble(x: Double): Double = bimodal.applyAsDouble(x)
 
                 override fun findNonConvexity(
                     over: Domain<Double>,
                     weights: DoubleArray,
                 ): Verdict<ConvexityWitness> = Verdict.Proven()
             }
-            val report = ConvexityLaws.check(overclaimer, line)
+            val report = ConvexityLaws.check(liar, line)
             report.holds shouldBe false
-            report.failures.map { it.law }.any { it.contains("never Proven") } shouldBe true
+            report.failures.map { it.law }.any { it.contains("may not deny a witness") } shouldBe true
         }
     }
 

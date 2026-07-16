@@ -147,14 +147,26 @@ public object ConvexityLaws {
             }
         }
 
-        // (4) Over a Sampled domain, convexity must NEVER come back Proven — two
-        // uncountable quantifiers, and the grid saw neither exhaustively. This is
-        // §15.6's whole point ("returning true asserts a proof we did not
-        // perform"), asserted rather than trusted.
-        checker.law1("a sampled ∀ is never Proven", "CLAUDE.md §15.6, §19.1") { _ ->
-            if (!over.isExhaustive && convexity is Verdict.Proven) {
-                "findNonConvexity returned Proven over a non-exhaustive domain ($over) — " +
-                    "a grid cannot prove a ∀ over two uncountable quantifiers"
+        // (4) The GENERIC DEFAULT must never return Proven over a sampled domain —
+        // two uncountable quantifiers, and the grid saw neither exhaustively. §15.6's
+        // whole point, asserted rather than trusted.
+        //
+        // CLAUDE.md §20.5: this is stated about `generic`, NOT about `fn`, and the
+        // narrowing is not a weakening. A closed form may honestly return Proven
+        // over a Sampled domain — a TriangularNumber is convex by construction, and
+        // `Proven` means "a proof exists", not "the domain was exhaustive". The
+        // earlier "a sampled ∀ is never Proven" would have rejected it.
+        //
+        // "Unless the subject supplied a proof" was considered and rejected as
+        // UNVERIFIABLE: a suite cannot see whether an override has a proof, only
+        // that a Proven came back, so such a law could only be believed — which is
+        // what §7 exists not to do. Law (2) above is the checkable form: Proven ⟹
+        // the generic search finds no witness. Don't test the mechanism; test that
+        // the closed form agrees with the fold it replaces.
+        checker.law1("the generic default never returns Proven over a sampled domain", "CLAUDE.md §15.6, §19.1, §20.5") { _ ->
+            if (!over.isExhaustive && genericConvexity is Verdict.Proven) {
+                "the generic findNonConvexity returned Proven over a non-exhaustive domain " +
+                    "($over) — a grid cannot prove a ∀ over two uncountable quantifiers"
             } else {
                 null
             }

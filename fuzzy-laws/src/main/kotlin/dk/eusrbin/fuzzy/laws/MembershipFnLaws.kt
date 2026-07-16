@@ -101,13 +101,38 @@ public object MembershipFnLaws {
             }
         }
 
-        checker.law1("override: height agrees with the fold", OVERRIDE_CITATION) { _ ->
-            checker.eq(fn.height(over), generic.height(over), "height(over)", "the generic fold")
+        // CLAUDE.md §20.7 — NOT equality, and the asymmetry is the whole point.
+        //
+        // `height`'s own KDoc says the sampled answer is "a lower bound on the true
+        // supremum". So the fold FOUND an x achieving 0.5: the true Sup is at least
+        // 0.5, and THAT half is absolute. An override claiming 0.3 is lying and is
+        // caught here. An override claiming 1.0 may simply know more — a closed form
+        // beats a grid that steps over the peak, which is §15.3's entire promise.
+        //
+        // Asserting equality would reject §15.3's own worked example:
+        // TriangularNumber(-0.5, 0.5, 1.5) over a grid of {0.0, 1.0} folds to 0.5
+        // and analytically IS 1.0.
+        checker.law1("override: height ≥ the fold", OVERRIDE_CITATION) { _ ->
+            checker.leq(generic.height(over), fn.height(over), "the generic fold", "height(over)")
         }
 
-        checker.law1("override: sigmaCount agrees with the fold", OVERRIDE_CITATION) { _ ->
-            checker.eq(fn.sigmaCount(over), generic.sigmaCount(over), "sigmaCount(over)", "the generic fold")
+        // ... and tightened where the domain can promise more (§20.7). Over an
+        // Enumerable the fold visits EVERY element, so it IS the Sup over that
+        // domain — not a lower bound on anything — and equality is sound. This is
+        // the half with teeth: it catches an override that ignores a
+        // question-defining domain (§20.8), which `≥` alone cannot.
+        checker.law1("override: height == the fold, when the domain is exhaustive", OVERRIDE_CITATION) { _ ->
+            if (!over.isExhaustive) {
+                null
+            } else {
+                checker.eq(fn.height(over), generic.height(over), "height(over)", "the generic fold")
+            }
         }
+
+        // NO sigmaCount check. §20.1(b)/(c): `Σ over this domain` and `∫f dx` are
+        // two questions, so nothing overrides sigmaCount — by decision, not by
+        // omission. A check would be vacuous, and a vacuous law is worse than none:
+        // it reads as coverage.
 
         checker.law1("override: support agrees with the fold", OVERRIDE_CITATION) { _ ->
             sameElements(fn.support(over), generic.support(over), "support(over)")
@@ -117,8 +142,32 @@ public object MembershipFnLaws {
             sameElements(fn.core(over), generic.core(over), "core(over)")
         }
 
-        checker.law1("override: maximalGradeSet agrees with the fold", OVERRIDE_CITATION) { _ ->
-            sameElements(fn.maximalGradeSet(over), generic.maximalGradeSet(over), "maximalGradeSet(over)")
+        // CLAUDE.md §20.7's guard PROPAGATES, and this is the member it reaches.
+        //
+        // `support`, `core` and `alphaCut` are filters on `f` alone, so they are
+        // untouched by a `height` override and equality is sound for them over any
+        // domain. `maximalGradeSet` is not: its default body is
+        //
+        //     over.filter { apply(x) >= height(over) }        <- the VIRTUAL height
+        //
+        // so overriding `height` silently changes it. Nobody overrides
+        // maximalGradeSet (§20.1(b) forbids it — the return type cannot hold an
+        // interval), and it disagrees with the fold anyway.
+        //
+        // Over a Sampled window with an off-grid peak the disagreement is CORRECT
+        // and already ratified: §18.3 says "the true supremum may be approached
+        // between grid points and attained nowhere on the grid, which is Sampled's
+        // standing caveat". T(-1, 0.5, 2) over 512 points has an analytic height of
+        // 1.0 that no grid point attains, so maximalGradeSet is legitimately empty
+        // while the fold's is {0.499...}.
+        //
+        // So it inherits height's asymmetry exactly, and gets height's guard.
+        checker.law1("override: maximalGradeSet agrees with the fold, when the domain is exhaustive", OVERRIDE_CITATION) { _ ->
+            if (!over.isExhaustive) {
+                null
+            } else {
+                sameElements(fn.maximalGradeSet(over), generic.maximalGradeSet(over), "maximalGradeSet(over)")
+            }
         }
 
         // α is the thing that varies here, so the degree pool is exactly the
