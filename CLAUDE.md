@@ -1844,7 +1844,30 @@ fuzzy sets a many-valued logic on [0,1]. Set operations and logical connectives
 are the same functions in different hats. This is *why* `fuzzy-algebra` is a
 standalone module: it is the connective layer, useful with no set theory at all.
 
-### 3. The capability seam (central design fact)
+### 3. The capability seam (central design fact) — **MECHANISM SUPERSEDED by §15**
+
+> **Read §15 before this section.** §3's *motivation* is the founding insight of
+> the library and stands untouched: some operations need a `Sup` over X, you
+> cannot take one over an uncountable X given only a black-box function, and
+> asking for one you cannot compute must be a **compile error**. §15 meets that
+> requirement more cheaply.
+>
+> **The mechanism below is wrong in three of its four cases**, and each was
+> deleted by building it:
+>
+> - **`Opaque` is not a `Domain`** (§15.2). It is the one case that cannot answer
+>   the only question a `Domain` exists to answer. An opaque X is simply one you
+>   have no `Domain` for — and then every `Sup` is unreachable, which is exactly
+>   §3's requirement with one fewer concept.
+> - **`Parametric` is a category error** (§15.3). `Enumerable` and `Sampled`
+>   describe the **carrier**; `Parametric` described the **membership function**.
+>   Closed forms are overrides on the function — and, per §20.8, ones that *read*
+>   the carrier rather than ignoring it.
+> - **The domain is not part of a set's type** (§15.1). It is a parameter of the
+>   operations that need it.
+>
+> The shipped seam is `Enumerable` | `Sampled` | `Product`, supplied at the call
+> site. **Do not build `Opaque` or `Parametric` from this section.**
 
 Fuzzy-set operations split cleanly in two, and the split drives the whole
 architecture:

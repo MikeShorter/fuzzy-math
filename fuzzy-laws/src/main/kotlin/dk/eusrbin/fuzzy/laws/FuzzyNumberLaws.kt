@@ -49,9 +49,9 @@ import kotlin.math.min
  * peaking at `0.5` on a grid that steps over the peak folds to `0.9999`, so the
  * true answer `1.0` fails its own law. The gap is `O(step × slope)`, so the law
  * would need a *resolution* tolerance, and there is no Lipschitz constant here to
- * derive one from. §8 calibrates tolerances **per algebra, in one place**;
- * inventing a per-grid species to rescue a redundant law is how that decision gets
- * eroded. The `isExhaustive` law already catches the defect.
+ * derive one from. §8 calibrates tolerances **in one place, per operation**
+ * (§14.6(a)); inventing a per-grid species to rescue a redundant law is how that
+ * decision gets eroded. The `isExhaustive` law already catches the defect.
  */
 public object FuzzyNumberLaws {
 
